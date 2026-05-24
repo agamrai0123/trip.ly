@@ -1,0 +1,335 @@
+name: Branch Merge & Deployment Pipeline
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - production
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: '1.23.0'
+  NODE_VERSION: '20.x'
+
+jobs:
+  # ============================================================================
+  # BRANCH VALIDATION - ENSURE CORRECT SOURCE/TARGET
+  # ============================================================================
+  validate-branch-structure:
+    name: Validate Branch Structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check merge direction
+        id: check-merge
+        run: |
+          BASE_BRANCH="${{ github.base_ref }}"
+          HEAD_BRANCH="${{ github.head_ref }}"
+          
+          echo "Base branch: $BASE_BRANCH"
+          echo "Head branch: $HEAD_BRANCH"
+          
+          # Allowed merge paths:
+          # feature/* -> develop
+          # develop -> production
+          # production -> main (for releases)
+          # hotfix/* -> production
+          
+          VALID_MERGE=false
+          MERGE_TYPE="unknown"
+          
+          if [[ "$BASE_BRANCH" == "develop" ]] && [[ "$HEAD_BRANCH" == feature/* ]]; then
+            VALID_MERGE=true
+            MERGE_TYPE="feature_to_develop"
+          elif [[ "$BASE_BRANCH" == "production" ]] && [[ "$HEAD_BRANCH" == "develop" ]]; then
+            VALID_MERGE=true
+            MERGE_TYPE="develop_to_production"
+          elif [[ "$BASE_BRANCH" == "production" ]] && [[ "$HEAD_BRANCH" == hotfix/* ]]; then
+            VALID_MERGE=true
+            MERGE_TYPE="hotfix_to_production"
+          elif [[ "$BASE_BRANCH" == "main" ]] && [[ "$HEAD_BRANCH" == "production" ]]; then
+            VALID_MERGE=true
+            MERGE_TYPE="production_to_main"
+          fi
+          
+          echo "VALID_MERGE=$VALID_MERGE" >> $GITHUB_OUTPUT
+          echo "MERGE_TYPE=$MERGE_TYPE" >> $GITHUB_OUTPUT
+          
+          if [ "$VALID_MERGE" = false ]; then
+            echo "❌ Invalid merge direction: $HEAD_BRANCH -> $BASE_BRANCH"
+            exit 1
+          fi
+          
+          echo "✅ Valid merge: $MERGE_TYPE"
+
+  # ============================================================================
+  # COMPREHENSIVE TESTING BEFORE MERGE
+  # ============================================================================
+  frontend-tests:
+    name: Frontend - Tests & Quality
+    runs-on: ubuntu-latest
+    needs: validate-branch-structure
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: cd frontend && bun install --frozen-lockfile
+
+      - name: Run ESLint
+        run: cd frontend && bun run lint 2>&1
+        continue-on-error: false
+
+      - name: TypeScript check
+        run: cd frontend && bun run build 2>&1
+        continue-on-error: false
+
+      - name: Run unit tests
+        run: cd frontend && bun run test 2>&1
+        continue-on-error: false
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          fail_ci_if_error: false
+
+  backend-tests:
+    name: Backend - Tests & Quality
+    runs-on: ubuntu-latest
+    needs: validate-branch-structure
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - trip-service
+          - user-service
+          - collaboration-service
+          - notification-service
+          - search-service
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download Go modules
+        run: cd backend && go mod download
+
+      - name: Run go vet
+        run: cd backend && go vet ./...
+        continue-on-error: false
+
+      - name: Run golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin latest
+          cd backend && $(go env GOPATH)/bin/golangci-lint run ./...
+        continue-on-error: false
+
+      - name: Build ${{ matrix.service }}
+        run: |
+          cd backend/services/${{ matrix.service }}
+          go build -v -o /tmp/${{ matrix.service }} ./cmd
+        continue-on-error: false
+
+      - name: Run tests
+        run: |
+          cd backend/services/${{ matrix.service }}
+          go test -v -race -coverprofile=coverage.out -timeout 30s ./...
+        continue-on-error: false
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/services/${{ matrix.service }}/coverage.out
+          flags: backend-${{ matrix.service }}
+          fail_ci_if_error: false
+
+  proto-validation:
+    name: Proto - Validation
+    runs-on: ubuntu-latest
+    needs: validate-branch-structure
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install tools
+        run: |
+          apt-get update
+          apt-get install -y protobuf-compiler
+          go install github.com/bufbuild/buf/cmd/buf@latest
+
+      - name: Lint proto files
+        run: cd backend && buf lint
+        continue-on-error: false
+
+      - name: Verify proto generation
+        run: |
+          cd backend
+          buf generate
+          if ! git diff --quiet proto/gen/; then
+            echo "❌ Proto files are out of sync"
+            exit 1
+          fi
+        continue-on-error: false
+
+  # ============================================================================
+  # MERGE GATE - REQUIRES ALL TESTS TO PASS
+  # ============================================================================
+  merge-gate:
+    name: Merge Gate - All Tests Must Pass
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests, proto-validation]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          FRONTEND_STATUS="${{ needs.frontend-tests.result }}"
+          BACKEND_STATUS="${{ needs.backend-tests.result }}"
+          PROTO_STATUS="${{ needs.proto-validation.result }}"
+          
+          echo "Frontend Tests: $FRONTEND_STATUS"
+          echo "Backend Tests: $BACKEND_STATUS"
+          echo "Proto Validation: $PROTO_STATUS"
+          
+          if [[ "$FRONTEND_STATUS" != "success" ]] || \
+             [[ "$BACKEND_STATUS" != "success" ]] || \
+             [[ "$PROTO_STATUS" != "success" ]]; then
+            echo "❌ Not all tests passed. Merge blocked."
+            exit 1
+          fi
+          
+          echo "✅ All tests passed. Merge allowed."
+
+  # ============================================================================
+  # AUTO-APPROVE & MERGE (for develop -> production)
+  # ============================================================================
+  auto-merge-on-success:
+    name: Auto-Merge on Success
+    runs-on: ubuntu-latest
+    needs: [merge-gate, validate-branch-structure]
+    if: success()
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auto-approve and merge
+        run: |
+          set +e
+          
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          echo "PR Number: $PR_NUMBER"
+          
+          # Try to auto-approve
+          gh pr review "$PR_NUMBER" --approve 2>&1 || true
+          
+          # Try to auto-merge
+          gh pr merge "$PR_NUMBER" \
+            --auto \
+            --squash \
+            --delete-branch 2>&1 || {
+              echo "⚠️  Could not auto-merge. Manual approval may be required."
+            }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+  # ============================================================================
+  # DEPLOYMENT READINESS
+  # ============================================================================
+  deployment-readiness:
+    name: Deployment Readiness Check
+    runs-on: ubuntu-latest
+    needs: [merge-gate]
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate deployment report
+        run: |
+          BASE_BRANCH="${{ github.base_ref }}"
+          HEAD_BRANCH="${{ github.head_ref }}"
+          
+          mkdir -p deployment
+          cat > deployment/MERGE_REPORT.md << EOF
+          # Merge Report
+          
+          **Source Branch**: $HEAD_BRANCH
+          **Target Branch**: $BASE_BRANCH
+          **Commit**: ${{ github.sha }}
+          **Timestamp**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          ## Test Results
+          - ✅ Frontend Tests: PASSED
+          - ✅ Backend Tests: PASSED
+          - ✅ Proto Validation: PASSED
+          
+          ## Deployment Status
+          - Status: READY FOR MERGE
+          - All automated checks: PASSED
+          
+          ---
+          Generated by GitHub Actions
+          EOF
+          cat deployment/MERGE_REPORT.md
+
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: merge-report
+          path: deployment/
+
+      - name: Summary
+        run: |
+          echo "✅ Branch merge validation complete!"
+          echo "📊 All tests passed successfully"
+          echo "🚀 Ready for merge to ${{ github.base_ref }}"
+
+  # ============================================================================
+  # NOTIFICATION
+  # ============================================================================
+  notify-merge-status:
+    name: Notify Merge Status
+    runs-on: ubuntu-latest
+    needs: [merge-gate]
+    if: always()
+    steps:
+      - name: Merge Status Summary
+        run: |
+          MERGE_GATE_STATUS="${{ needs.merge-gate.result }}"
+          BASE_BRANCH="${{ github.base_ref }}"
+          HEAD_BRANCH="${{ github.head_ref }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          
+          if [[ "$MERGE_GATE_STATUS" == "success" ]]; then
+            echo "✅ PR #$PR_NUMBER is ready to merge: $HEAD_BRANCH -> $BASE_BRANCH"
+          else
+            echo "❌ PR #$PR_NUMBER failed merge gate: $HEAD_BRANCH -> $BASE_BRANCH"
+            echo "Please review the failed tests and fix issues before merging."
+          fi

@@ -104,11 +104,14 @@ jobs:
 
       - name: Create issue for unresolved errors
         if: failure()
-        uses: actions/create-issue@v2
+        uses: actions/github-script@v7
         with:
-          title: "🚨 CI/CD Pipeline Failed - Manual Review Required"
-          body: |
-            ## CI/CD Pipeline Failure Report
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "🚨 CI/CD Pipeline Failed - Manual Review Required",
+              body: `## CI/CD Pipeline Failure Report
             
             **Workflow**: ${{ github.event.workflow_run.name }}
             **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
@@ -123,8 +126,9 @@ jobs:
             2. Address any remaining issues
             3. Push fixes to trigger a new run
             
-            **Assigned to**: @${{ github.actor }}
-          labels: "bug,ci-failure"
+            **Assigned to**: @${{ github.actor }}`,
+              labels: ["bug", "ci-failure"]
+            })
         continue-on-error: true
 
   retry-on-timeout:
