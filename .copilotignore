@@ -1,0 +1,28 @@
+# .copilotignore — files Copilot will NOT index for context suggestions
+# Reduces token consumption per request significantly
+
+# Generated proto code — never needs Copilot context
+backend/proto/**/*.pb.go
+backend/proto/**/*_grpc.pb.go
+
+# Go module cache & build outputs
+bin/
+.air/
+**/vendor/
+
+# Frontend dependencies & build
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Logs, coverage, test artefacts
+**/*.log
+**/coverage.out
+**/coverage/
+**/__snapshots__/
+
+# Grafana dashboard JSON (large, not useful as code context)
+deployments/grafana/dashboards/*.json
+
+# Docker layer cache
+**/.docker/

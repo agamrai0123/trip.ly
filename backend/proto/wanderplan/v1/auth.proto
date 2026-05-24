@@ -1,0 +1,30 @@
+// auth.proto defines the gRPC contract for the WanderPlan auth-service.
+syntax = "proto3";
+
+package wanderplan.v1;
+
+option go_package = "wanderplan/proto/gen/wanderplan/v1;wanderplanv1";
+
+// AuthService exposes synchronous token validation used by the api-gateway.
+service AuthService {
+  // ValidateToken verifies a JWT access token and returns the embedded user claims.
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+// ValidateTokenRequest carries the raw JWT string.
+message ValidateTokenRequest {
+  // token is the RS256 JWT access token (without "Bearer " prefix).
+  string token = 1;
+}
+
+// ValidateTokenResponse carries the claims extracted from a valid token.
+message ValidateTokenResponse {
+  // user_id is the UUID of the authenticated user.
+  string user_id = 1;
+  // email is the user's email address.
+  string email = 2;
+  // name is the user's display name.
+  string name = 3;
+  // avatar_url is the user's profile picture URL.
+  string avatar_url = 4;
+}

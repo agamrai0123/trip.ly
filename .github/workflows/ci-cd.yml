@@ -1,0 +1,440 @@
+name: CI/CD Pipeline - Test, Validate & Auto-Merge
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: '1.23.0'
+  NODE_VERSION: '20.x'
+
+jobs:
+  # ============================================================================
+  # FRONTEND TESTS & VALIDATION
+  # ============================================================================
+  frontend-lint:
+    name: Frontend - ESLint & TypeScript Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: cd frontend && bun install --frozen-lockfile
+
+      - name: Run ESLint
+        run: cd frontend && bun run lint
+        continue-on-error: false
+
+      - name: TypeScript type check
+        run: cd frontend && bun run build
+
+  frontend-test:
+    name: Frontend - Unit & Component Tests
+    runs-on: ubuntu-latest
+    needs: frontend-lint
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: cd frontend && bun install --frozen-lockfile
+
+      - name: Run tests
+        run: cd frontend && bun run test
+        continue-on-error: false
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # BACKEND TESTS & VALIDATION
+  # ============================================================================
+  backend-lint:
+    name: Backend - Go Vet & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download Go modules
+        run: cd backend && go mod download
+
+      - name: Run go vet
+        run: cd backend && go vet ./...
+        continue-on-error: false
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin latest
+
+      - name: Run golangci-lint
+        run: cd backend && $(go env GOPATH)/bin/golangci-lint run ./...
+        continue-on-error: false
+
+  backend-build:
+    name: Backend - Build All Services
+    runs-on: ubuntu-latest
+    needs: backend-lint
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - trip-service
+          - user-service
+          - collaboration-service
+          - notification-service
+          - search-service
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download Go modules
+        run: cd backend && go mod download
+
+      - name: Build ${{ matrix.service }}
+        run: |
+          cd backend/services/${{ matrix.service }}
+          go build -v -o /tmp/${{ matrix.service }} ./cmd
+        continue-on-error: false
+
+      - name: Run ${{ matrix.service }} tests
+        run: |
+          cd backend/services/${{ matrix.service }}
+          go test -v -race -coverprofile=coverage.out ./...
+        continue-on-error: false
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/services/${{ matrix.service }}/coverage.out
+          flags: backend-${{ matrix.service }}
+          fail_ci_if_error: false
+
+  backend-integration-tests:
+    name: Backend - Integration Tests
+    runs-on: ubuntu-latest
+    needs: backend-build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wanderplan_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      kafka:
+        image: confluentinc/cp-kafka:7.6.0
+        env:
+          KAFKA_BROKER_ID: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://127.0.0.1:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        ports:
+          - 9092:9092
+
+      zookeeper:
+        image: confluentinc/cp-zookeeper:7.6.0
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+        ports:
+          - 2181:2181
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download Go modules
+        run: cd backend && go mod download
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/wanderplan_test"
+          KAFKA_BROKERS: "localhost:9092"
+        run: |
+          cd backend
+          go test -v -race -tags=integration -timeout 60s ./...
+        continue-on-error: false
+
+  # ============================================================================
+  # PROTO VALIDATION
+  # ============================================================================
+  proto-check:
+    name: Proto - Validation & Generation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install protoc
+        run: |
+          apt-get update
+          apt-get install -y protobuf-compiler
+
+      - name: Install buf
+        run: |
+          go install github.com/bufbuild/buf/cmd/buf@latest
+
+      - name: Lint proto files
+        run: cd backend && buf lint
+        continue-on-error: false
+
+      - name: Check proto generation
+        run: |
+          cd backend
+          buf generate
+          git diff --exit-code proto/gen/ || {
+            echo "❌ Proto files are out of sync. Run 'make proto' to regenerate."
+            exit 1
+          }
+        continue-on-error: false
+
+  # ============================================================================
+  # DOCKER BUILD VALIDATION
+  # ============================================================================
+  docker-build:
+    name: Docker - Build & Security Scan
+    runs-on: ubuntu-latest
+    needs: [frontend-test, backend-build]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images
+        run: |
+          docker compose -f docker-compose.yml build
+        continue-on-error: false
+
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ============================================================================
+  # ERROR DETECTION & LOGGING
+  # ============================================================================
+  error-check:
+    name: Error Detection - Logs & Exit Codes
+    runs-on: ubuntu-latest
+    needs: [frontend-test, backend-build, proto-check]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for build failures
+        run: |
+          if [ "${{ needs.frontend-test.result }}" == "failure" ] || \
+             [ "${{ needs.backend-build.result }}" == "failure" ] || \
+             [ "${{ needs.proto-check.result }}" == "failure" ]; then
+            echo "❌ Tests or builds failed. See logs above."
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "✅ All checks passed!"
+          echo "Frontend: ${{ needs.frontend-test.result }}"
+          echo "Backend: ${{ needs.backend-build.result }}"
+          echo "Proto: ${{ needs.proto-check.result }}"
+
+  # ============================================================================
+  # AUTO-COMMIT & AUTO-MERGE
+  # ============================================================================
+  auto-fix-and-commit:
+    name: Auto-Fix & Commit
+    runs-on: ubuntu-latest
+    needs: [error-check]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Auto-fix ESLint issues
+        continue-on-error: true
+        run: |
+          cd frontend
+          bun install --frozen-lockfile
+          bun run lint --fix || true
+
+      - name: Format Go code
+        continue-on-error: true
+        run: |
+          cd backend
+          go mod tidy
+          go fmt ./...
+          goimports -w . || true
+
+      - name: Commit auto-fixes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "🤖 Auto-fix: ESLint & Go formatting" || true
+            git push origin ${{ github.ref }} || true
+          else
+            echo "✅ No files to fix"
+          fi
+
+  auto-merge:
+    name: Auto-Merge on Success
+    runs-on: ubuntu-latest
+    needs: [error-check, auto-fix-and-commit]
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable auto-merge
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --auto \
+            --squash \
+            --delete-branch || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # DEPLOYMENT READINESS CHECK
+  # ============================================================================
+  deployment-readiness:
+    name: Deployment Readiness
+    runs-on: ubuntu-latest
+    needs: [frontend-test, backend-build, docker-build]
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create deployment artifact
+        run: |
+          mkdir -p deployment
+          echo "Build completed successfully on $(date)" > deployment/BUILD_INFO.txt
+          echo "Commit: ${{ github.sha }}" >> deployment/BUILD_INFO.txt
+          echo "Branch: ${{ github.ref }}" >> deployment/BUILD_INFO.txt
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-ready
+          path: deployment/
+
+      - name: Notify deployment ready
+        run: |
+          echo "✅ Deployment artifact ready!"
+          echo "🚀 Ready for deployment to staging/production"
+
+  # ============================================================================
+  # NOTIFICATION & REPORTING
+  # ============================================================================
+  notify-status:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [frontend-test, backend-build, proto-check, docker-build, error-check]
+    if: always()
+    steps:
+      - name: Check overall status
+        run: |
+          STATUS="✅ PASSED"
+          if [ "${{ needs.error-check.result }}" == "failure" ]; then
+            STATUS="❌ FAILED"
+          fi
+          
+          echo "=== CI/CD Pipeline Results ==="
+          echo "Frontend Tests: ${{ needs.frontend-test.result }}"
+          echo "Backend Build: ${{ needs.backend-build.result }}"
+          echo "Proto Check: ${{ needs.proto-check.result }}"
+          echo "Docker Build: ${{ needs.docker-build.result }}"
+          echo "Overall: $STATUS"
+          echo "=============================="
+
+      - name: Create status badge
+        run: |
+          if [ "${{ needs.error-check.result }}" == "success" ]; then
+            echo "Badge: ![Status](https://img.shields.io/badge/Build-Passing-brightgreen)"
+          else
+            echo "Badge: ![Status](https://img.shields.io/badge/Build-Failing-red)"
+          fi

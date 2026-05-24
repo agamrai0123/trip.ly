@@ -1,0 +1,145 @@
+{
+  // ─── Copilot: model & chat ────────────────────────────────────────────────
+  "github.copilot.selectedModel": "auto",
+  "github.copilot.chat.followUps": "always",
+  "github.copilot.chat.generateTests.codeLens": true,
+
+  // ─── Remote / mobile session ──────────────────────────────────────────────
+  // Enables /remote on  →  monitor & steer from GitHub Mobile or github.com
+  "github.copilot.chat.cli.remote.enabled": true,
+
+  // ─── Copilot Agent Hooks ──────────────────────────────────────────────────
+  //
+  //  Hook lifecycle:
+  //    PreToolUse   – runs BEFORE a tool call (file write, shell command, etc.)
+  //    PostToolUse  – runs AFTER a tool call completes successfully
+  //    Stop         – runs when the agent finishes a turn
+  //    Notification – fires on any agent notification event
+  //
+  "github.copilot.chat.agent.hooks": {
+
+    // ── 1. Auto-lint Go files after Copilot writes them ──────────────────────
+    //    Runs golangci-lint on the exact file Copilot just touched.
+    //    Keeps the agent from writing code that would fail `make lint`.
+    "PostToolUse": [
+      {
+        "toolNames": ["writeFile", "editFile", "applyEdit"],
+        "command": {
+          "osx":   "if [[ \"${file}\" == *.go ]]; then golangci-lint run --fix \"${file}\" 2>&1 | head -40; fi",
+          "linux": "if [[ \"${file}\" == *.go ]]; then golangci-lint run --fix \"${file}\" 2>&1 | head -40; fi",
+          "windows": "if ($env:file -like '*.go') { golangci-lint run --fix $env:file 2>&1 | Select-Object -First 40 }"
+        },
+        "description": "Auto-lint Go files with golangci-lint after Copilot writes them"
+      },
+
+      // ── 2. Auto-lint TypeScript/TSX files after Copilot writes them ─────────
+      //    Runs eslint --fix so TypeScript strict-mode errors surface immediately.
+      {
+        "toolNames": ["writeFile", "editFile", "applyEdit"],
+        "command": {
+          "osx":   "if [[ \"${file}\" == *.tsx ]] || [[ \"${file}\" == *.ts ]]; then cd frontend && npx eslint --fix \"${file}\" 2>&1 | head -40; fi",
+          "linux": "if [[ \"${file}\" == *.tsx ]] || [[ \"${file}\" == *.ts ]]; then cd frontend && npx eslint --fix \"${file}\" 2>&1 | head -40; fi",
+          "windows": "if ($env:file -like '*.tsx' -or $env:file -like '*.ts') { Set-Location frontend; npx eslint --fix $env:file 2>&1 | Select-Object -First 40 }"
+        },
+        "description": "Auto-lint TypeScript files with eslint after Copilot writes them"
+      },
+
+      // ── 3. Regenerate gRPC code whenever a .proto file changes ──────────────
+      //    Ensures the generated *_grpc.pb.go files stay in sync automatically.
+      {
+        "toolNames": ["writeFile", "editFile", "applyEdit"],
+        "command": {
+          "osx":   "if [[ \"${file}\" == *.proto ]]; then make proto 2>&1; fi",
+          "linux": "if [[ \"${file}\" == *.proto ]]; then make proto 2>&1; fi",
+          "windows": "if ($env:file -like '*.proto') { make proto 2>&1 }"
+        },
+        "description": "Regenerate gRPC Go code after any .proto change"
+      },
+
+      // ── 4. Run migrations after Copilot creates a new migration file ─────────
+      //    Applies the new migration immediately so the DB is always up to date
+      //    while the agent is building out schema-dependent code.
+      {
+        "toolNames": ["writeFile"],
+        "command": {
+          "osx":   "if [[ \"${file}\" == migrations/*.up.sql ]]; then make migrate 2>&1; fi",
+          "linux": "if [[ \"${file}\" == migrations/*.up.sql ]]; then make migrate 2>&1; fi",
+          "windows": "if ($env:file -like 'migrations\\*.up.sql') { make migrate 2>&1 }"
+        },
+        "description": "Auto-apply new migration files as soon as Copilot creates them"
+      }
+    ],
+
+    // ── 5. Block Copilot from running dangerous shell commands ───────────────
+    //    Intercepts any shell/terminal tool call and rejects commands that
+    //    would drop the DB, delete files outside /tmp, or push to git directly.
+    "PreToolUse": [
+      {
+        "toolNames": ["runInTerminal", "executeCommand"],
+        "command": {
+          "osx":   "bash .vscode/hooks/guard-commands.sh \"${command}\"",
+          "linux": "bash .vscode/hooks/guard-commands.sh \"${command}\"",
+          "windows": "powershell -File .vscode/hooks/guard-commands.ps1 -Command \"$env:command\""
+        },
+        "description": "Block dangerous commands (DROP DATABASE, rm -rf outside /tmp, git push)"
+      }
+    ],
+
+    // ── 6. Run the full test suite and surface failures when the agent stops ──
+    //    Gives the agent immediate feedback so it can self-correct before
+    //    presenting results to you.
+    "Stop": [
+      {
+        "command": {
+          "osx":   "make test 2>&1 | tail -60",
+          "linux": "make test 2>&1 | tail -60",
+          "windows": "make test 2>&1 | Select-Object -Last 60"
+        },
+        "description": "Run full test suite (Go + frontend) at the end of each agent turn"
+      }
+    ]
+  },
+
+  // ─── Editor: Go ───────────────────────────────────────────────────────────
+  "[go]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "golang.go",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+
+  // ─── Editor: TypeScript / TSX ─────────────────────────────────────────────
+  "[typescript]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // ─── Go toolchain ─────────────────────────────────────────────────────────
+  "go.lintTool": "golangci-lint",
+  "go.lintOnSave": "package",
+  "go.testFlags": ["-v", "-race"],
+  "go.coverOnSave": false,
+
+  // ─── Reduce Copilot token burn on large generated files ───────────────────
+  // Exclude files Copilot should never index for context suggestions.
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false
+  },
+  "files.exclude": {
+    "**/backend/proto/**/*_grpc.pb.go": false,
+    "**/backend/proto/**/*.pb.go": false
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/bin": true,
+    "**/.git": true,
+    "**/backend/proto/**/*.pb.go": true
+  }
+}

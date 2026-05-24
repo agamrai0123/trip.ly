@@ -1,0 +1,25 @@
+// user.proto defines the gRPC contract for the WanderPlan user-service.
+syntax = "proto3";
+
+package wanderplan.v1;
+
+option go_package = "wanderplan/proto/gen/wanderplan/v1;wanderplanv1";
+
+// UserService exposes user profile lookups used by other services.
+service UserService {
+  // GetUser returns the profile of a user by ID.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+// GetUserRequest identifies the user to fetch.
+message GetUserRequest {
+  string user_id = 1;
+}
+
+// GetUserResponse carries the user profile.
+message GetUserResponse {
+  string id         = 1;
+  string email      = 2;
+  string name       = 3;
+  string avatar_url = 4;
+}

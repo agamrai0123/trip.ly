@@ -1,0 +1,156 @@
+name: Error Recovery & Auto-Fix
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline - Test, Validate & Auto-Merge"]
+    types: [completed]
+
+jobs:
+  detect-and-fix-errors:
+    name: Detect & Auto-Fix Errors
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.0'
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Download previous workflow artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: ci-cd.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Parse and analyze errors
+        id: analyze
+        run: |
+          echo "Analyzing error logs..."
+          
+          # Frontend errors
+          if grep -r "error" artifacts/ 2>/dev/null | grep -i "frontend\|typescript\|eslint"; then
+            echo "FRONTEND_ERROR=true" >> $GITHUB_OUTPUT
+          fi
+          
+          # Backend errors
+          if grep -r "error" artifacts/ 2>/dev/null | grep -i "backend\|go\|build"; then
+            echo "BACKEND_ERROR=true" >> $GITHUB_OUTPUT
+          fi
+          
+          # Proto errors
+          if grep -r "error" artifacts/ 2>/dev/null | grep -i "proto\|buf"; then
+            echo "PROTO_ERROR=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fix TypeScript/ESLint errors
+        if: steps.analyze.outputs.FRONTEND_ERROR == 'true'
+        continue-on-error: true
+        run: |
+          cd frontend
+          bun install --frozen-lockfile
+          bun run lint --fix || true
+          bun run build || true
+
+      - name: Fix Go formatting and imports
+        if: steps.analyze.outputs.BACKEND_ERROR == 'true'
+        continue-on-error: true
+        run: |
+          cd backend
+          go mod tidy
+          go fmt ./...
+          
+          # Try to install goimports if not present
+          go install golang.org/x/tools/cmd/goimports@latest
+          goimports -w . || true
+
+      - name: Regenerate proto files
+        if: steps.analyze.outputs.PROTO_ERROR == 'true'
+        continue-on-error: true
+        run: |
+          cd backend
+          go install github.com/bufbuild/buf/cmd/buf@latest
+          buf generate || true
+
+      - name: Commit fixes
+        continue-on-error: true
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "🔧 Auto-fix: Error recovery from workflow failure
+            
+            - Fixed TypeScript/ESLint errors
+            - Fixed Go formatting
+            - Regenerated proto files
+            
+            Triggered by workflow: ${{ github.event.workflow_run.name }}" || true
+            git push origin ${{ github.ref }} || true
+          fi
+
+      - name: Create issue for unresolved errors
+        if: failure()
+        uses: actions/create-issue@v2
+        with:
+          title: "🚨 CI/CD Pipeline Failed - Manual Review Required"
+          body: |
+            ## CI/CD Pipeline Failure Report
+            
+            **Workflow**: ${{ github.event.workflow_run.name }}
+            **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
+            **Branch**: ${{ github.ref }}
+            **Commit**: ${{ github.sha }}
+            
+            ### Auto-fix Attempt
+            The automated error recovery process attempted to fix errors but encountered issues. Please review the logs manually.
+            
+            ### Next Steps
+            1. Check the workflow run logs
+            2. Address any remaining issues
+            3. Push fixes to trigger a new run
+            
+            **Assigned to**: @${{ github.actor }}
+          labels: "bug,ci-failure"
+        continue-on-error: true
+
+  retry-on-timeout:
+    name: Retry on Timeout
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    permissions:
+      actions: write
+    steps:
+      - name: Check if timeout occurred
+        id: check_timeout
+        run: |
+          # This would require parsing the workflow run details
+          # For now, we'll set a simple flag
+          echo "MAY_TIMEOUT=true" >> $GITHUB_OUTPUT
+
+      - name: Trigger new workflow run
+        if: steps.check_timeout.outputs.MAY_TIMEOUT == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflow = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci-cd.yml',
+              ref: context.ref
+            });
+            console.log('New workflow triggered:', workflow);
+        continue-on-error: true

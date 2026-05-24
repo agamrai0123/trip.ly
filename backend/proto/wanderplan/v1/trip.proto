@@ -1,0 +1,49 @@
+// trip.proto defines the gRPC contract for the WanderPlan trip-service.
+syntax = "proto3";
+
+package wanderplan.v1;
+
+option go_package = "wanderplan/proto/gen/wanderplan/v1;wanderplanv1";
+
+// TripService exposes trip queries used by the user-service.
+service TripService {
+  // ListTripsByUser returns all trips owned by or shared with a user.
+  rpc ListTripsByUser(ListTripsByUserRequest) returns (ListTripsByUserResponse);
+  // GetTripStats returns aggregate statistics for a user's trips.
+  rpc GetTripStats(GetTripStatsRequest) returns (GetTripStatsResponse);
+}
+
+// ListTripsByUserRequest identifies the user whose trips to fetch.
+message ListTripsByUserRequest {
+  // user_id is the UUID of the requesting user.
+  string user_id = 1;
+}
+
+// TripSummary is a lightweight trip representation.
+message TripSummary {
+  string id            = 1;
+  string title         = 2;
+  string destination   = 3;
+  string cover_image_url = 4;
+  string start_date    = 5;
+  string end_date      = 6;
+  string status        = 7;
+}
+
+// ListTripsByUserResponse carries the list of trip summaries.
+message ListTripsByUserResponse {
+  repeated TripSummary trips = 1;
+}
+
+// GetTripStatsRequest identifies the user whose stats to compute.
+message GetTripStatsRequest {
+  string user_id = 1;
+}
+
+// GetTripStatsResponse carries aggregate trip metrics for the recharts dashboard.
+message GetTripStatsResponse {
+  int32  total_trips     = 1;
+  int32  total_countries = 2;
+  int32  total_days      = 3;
+  double total_budget    = 4;
+}
