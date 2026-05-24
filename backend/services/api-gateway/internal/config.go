@@ -22,6 +22,7 @@ type LoggingCfg struct {
 
 type ServicesCfg struct {
 	AuthAddr          string `mapstructure:"auth_addr"`
+	AuthGRPCAddr      string `mapstructure:"auth_grpc_addr"`
 	TripAddr          string `mapstructure:"trip_addr"`
 	UserAddr          string `mapstructure:"user_addr"`
 	CollaborationAddr string `mapstructure:"collaboration_addr"`
@@ -41,7 +42,10 @@ type RateLimitCfg struct {
 // Validate returns an error if required fields are missing.
 func (c *Config) Validate() error {
 	if c.Services.AuthAddr == "" {
-		c.Services.AuthAddr = "localhost:9081"
+		c.Services.AuthAddr = "localhost:8081"
+	}
+	if c.Services.AuthGRPCAddr == "" {
+		c.Services.AuthGRPCAddr = "localhost:9081"
 	}
 	if c.ServerPort == 0 {
 		c.ServerPort = 8080

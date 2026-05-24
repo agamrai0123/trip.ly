@@ -11,7 +11,8 @@
         "max_age_days": 30
     },
     "services": {
-        "auth_addr":          "localhost:9081",
+        "auth_addr":          "localhost:8081",
+        "auth_grpc_addr":     "localhost:9081",
         "trip_addr":          "localhost:8082",
         "user_addr":          "localhost:8083",
         "collaboration_addr": "localhost:8084",

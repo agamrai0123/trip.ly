@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,6 +30,28 @@ func main() {
 	if err := cfg.Validate(); err != nil {
 		fmt.Fprintf(os.Stderr, "config validation: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Override config from flat env vars set by Render (or any deployment env).
+	if v := os.Getenv("DB_HOST"); v != "" {
+		cfg.Database.Host = v
+	}
+	if v := os.Getenv("DB_PORT"); v != "" {
+		if n := atoi(v); n > 0 {
+			cfg.Database.Port = n
+		}
+	}
+	if v := os.Getenv("DB_NAME"); v != "" {
+		cfg.Database.Name = v
+	}
+	if v := os.Getenv("DB_USER"); v != "" {
+		cfg.Database.User = v
+	}
+	if v := os.Getenv("DB_PASSWORD"); v != "" {
+		cfg.Database.Password = v
+	}
+	if v := os.Getenv("KAFKA_BROKERS"); v != "" {
+		cfg.Kafka.Brokers = strings.Split(v, ",")
 	}
 
 	internal.InitLogger(cfg.Logging, "trip-service")
@@ -170,4 +193,16 @@ func (g *tripGRPCServer) GetTripStats(ctx context.Context, req *proto.GetTripSta
 		TotalDays:      int32(stats.TotalDays),
 		TotalBudget:    stats.TotalBudget,
 	}, nil
+}
+
+// atoi converts a string to int, returning 0 on error.
+func atoi(s string) int {
+	n := 0
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n
 }

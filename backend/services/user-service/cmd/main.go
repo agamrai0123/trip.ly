@@ -30,6 +30,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Override config from flat env vars set by Render (or any deployment env).
+	if v := os.Getenv("DB_HOST"); v != "" {
+		cfg.Database.Host = v
+	}
+	if v := os.Getenv("DB_PORT"); v != "" {
+		if n := atoi(v); n > 0 {
+			cfg.Database.Port = n
+		}
+	}
+	if v := os.Getenv("DB_NAME"); v != "" {
+		cfg.Database.Name = v
+	}
+	if v := os.Getenv("DB_USER"); v != "" {
+		cfg.Database.User = v
+	}
+	if v := os.Getenv("DB_PASSWORD"); v != "" {
+		cfg.Database.Password = v
+	}
 	internal.InitLogger(cfg.Logging, "user-service")
 
 	dbCfg := database.Config{
@@ -139,4 +157,16 @@ func (g *userGRPCServer) GetUser(ctx context.Context, req *proto.GetUserRequest)
 		Name:      u.Name,
 		AvatarUrl: u.AvatarURL,
 	}, nil
+}
+
+// atoi converts a string to int, returning 0 on error.
+func atoi(s string) int {
+	n := 0
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n
 }

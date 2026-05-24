@@ -27,6 +27,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Override service addresses from Render/deployment env vars.
+	if v := os.Getenv("AUTH_SERVICE_ADDR"); v != "" {
+		cfg.Services.AuthAddr = v
+	}
+	if v := os.Getenv("AUTH_SERVICE_GRPC_ADDR"); v != "" {
+		cfg.Services.AuthGRPCAddr = v
+	}
+	if v := os.Getenv("TRIP_SERVICE_ADDR"); v != "" {
+		cfg.Services.TripAddr = v
+	}
+	if v := os.Getenv("USER_SERVICE_ADDR"); v != "" {
+		cfg.Services.UserAddr = v
+	}
+	if v := os.Getenv("COLLAB_SERVICE_ADDR"); v != "" {
+		cfg.Services.CollaborationAddr = v
+	}
+	if v := os.Getenv("NOTIFY_SERVICE_ADDR"); v != "" {
+		cfg.Services.NotificationAddr = v
+	}
+	if v := os.Getenv("SEARCH_SERVICE_ADDR"); v != "" {
+		cfg.Services.SearchAddr = v
+	}
+
 	// ── Logger ────────────────────────────────────────────────
 	internal.InitLogger(cfg.Logging, "api-gateway")
 
@@ -45,7 +68,7 @@ func main() {
 	}
 
 	// ── Auth-service gRPC validator ───────────────────────────
-	authValidator, err := internal.NewAuthValidator(cfg.Services.AuthAddr)
+	authValidator, err := internal.NewAuthValidator(cfg.Services.AuthGRPCAddr)
 	if err != nil {
 		log.Fatal().Err(err).Msg("dial auth-service")
 	}

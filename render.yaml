@@ -54,6 +54,8 @@ services:
       # Internal service addresses (use Render's private service hostnames)
       - key: AUTH_SERVICE_ADDR
         value: wanderplan-auth-service:8081
+      - key: AUTH_SERVICE_GRPC_ADDR
+        value: wanderplan-auth-service:9081
       - key: TRIP_SERVICE_GRPC_ADDR
         value: wanderplan-trip-service:9082
       - key: USER_SERVICE_GRPC_ADDR
