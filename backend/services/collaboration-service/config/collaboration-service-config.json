@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "server_port": "8084",
+  "logging": {
+    "level": 1,
+    "path": "./logs/collaboration-service.log",
+    "max_size_mb": 100,
+    "max_backups": 3,
+    "max_age_days": 7
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "wanderplan",
+    "user": "postgres",
+    "password": "",
+    "ssl_mode": "disable",
+    "schema": "wanderplan",
+    "max_conns": 10,
+    "min_conns": 2
+  },
+  "kafka": {
+    "brokers": ["localhost:9092"]
+  },
+  "cors": {
+    "allowed_origins": ["http://localhost:5173"]
+  },
+  "rate_limiting": {
+    "rps": 20,
+    "burst": 40
+  }
+}

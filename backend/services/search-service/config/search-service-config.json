@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "server_port": "8086",
+  "google_places_api_key": "",
+  "logging": {
+    "level": 1,
+    "path": "./logs/search-service.log",
+    "max_size_mb": 100,
+    "max_backups": 3,
+    "max_age_days": 7
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "wanderplan",
+    "user": "postgres",
+    "password": "",
+    "ssl_mode": "disable",
+    "schema": "wanderplan",
+    "max_conns": 10,
+    "min_conns": 2
+  },
+  "cors": {
+    "allowed_origins": ["http://localhost:5173"]
+  },
+  "rate_limiting": {
+    "rps": 30,
+    "burst": 60
+  }
+}

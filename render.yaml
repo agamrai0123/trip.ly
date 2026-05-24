@@ -1,0 +1,330 @@
+# render.yaml — WanderPlan Infrastructure as Code
+# Deploy with: render blueprint apply
+#
+# Prerequisites (external services to provision first):
+#   - Upstash Kafka (free tier): https://upstash.com — create a cluster and copy the broker address
+#   - Google Places API key: https://console.cloud.google.com — enable Places API
+#   - RS256 JWT key pair: openssl genrsa -out private.pem 2048 && openssl rsa -in private.pem -pubout -out public.pem
+#     then base64-encode: base64 -w0 private.pem  and  base64 -w0 public.pem
+#   - GitHub / Google OAuth credentials for auth-service
+
+databases:
+  - name: wanderplan-db
+    plan: free
+    databaseName: wanderplan
+    user: wanderplan_user
+    postgresMajorVersion: 16
+
+services:
+  # ── api-gateway (8080) ────────────────────────────────────────────────────
+  - type: web
+    name: wanderplan-api-gateway
+    runtime: docker
+    dockerfilePath: ./backend/services/api-gateway/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENV
+        value: production
+      - key: JWT_PRIVATE_KEY
+        sync: false          # paste base64-encoded RS256 private key in Render dashboard
+      - key: JWT_PUBLIC_KEY
+        sync: false          # paste base64-encoded RS256 public key in Render dashboard
+      - key: DB_HOST
+        fromDatabase:
+          name: wanderplan-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: wanderplan-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: wanderplan-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: wanderplan-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: wanderplan-db
+          property: password
+      # Internal service addresses (use Render's private service hostnames)
+      - key: AUTH_SERVICE_ADDR
+        value: wanderplan-auth-service:8081
+      - key: TRIP_SERVICE_GRPC_ADDR
+        value: wanderplan-trip-service:9082
+      - key: USER_SERVICE_GRPC_ADDR
+        value: wanderplan-user-service:9083
+      - key: TRIP_SERVICE_ADDR
+        value: wanderplan-trip-service:8082
+      - key: USER_SERVICE_ADDR
+        value: wanderplan-user-service:8083
+      - key: COLLAB_SERVICE_ADDR
+        value: wanderplan-collaboration-service:8084
+      - key: NOTIFY_SERVICE_ADDR
+        value: wanderplan-notification-service:8085
+      - key: SEARCH_SERVICE_ADDR
+        value: wanderplan-search-service:8086
+
+  # ── auth-service (8081) ───────────────────────────────────────────────────
+  - type: web
+    name: wanderplan-auth-service
+    runtime: docker
+    dockerfilePath: ./backend/services/auth-service/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENV
+        value: production
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: wanderplan-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: wanderplan-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: wanderplan-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: wanderplan-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: wanderplan-db
+          property: password
+      - key: KAFKA_BROKERS
+        sync: false          # e.g. "your-cluster.upstash.io:9092"
+
+  # ── trip-service (8082) ───────────────────────────────────────────────────
+  - type: web
+    name: wanderplan-trip-service
+    runtime: docker
+    dockerfilePath: ./backend/services/trip-service/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENV
+        value: production
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: wanderplan-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: wanderplan-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: wanderplan-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: wanderplan-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: wanderplan-db
+          property: password
+      - key: KAFKA_BROKERS
+        sync: false
+
+  # ── user-service (8083) ───────────────────────────────────────────────────
+  - type: web
+    name: wanderplan-user-service
+    runtime: docker
+    dockerfilePath: ./backend/services/user-service/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENV
+        value: production
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: wanderplan-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: wanderplan-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: wanderplan-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: wanderplan-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: wanderplan-db
+          property: password
+      - key: TRIP_SERVICE_GRPC_ADDR
+        value: wanderplan-trip-service:9082
+
+  # ── collaboration-service (8084) ──────────────────────────────────────────
+  - type: web
+    name: wanderplan-collaboration-service
+    runtime: docker
+    dockerfilePath: ./backend/services/collaboration-service/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENV
+        value: production
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: wanderplan-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: wanderplan-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: wanderplan-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: wanderplan-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: wanderplan-db
+          property: password
+      - key: KAFKA_BROKERS
+        sync: false
+
+  # ── notification-service (8085) ───────────────────────────────────────────
+  - type: web
+    name: wanderplan-notification-service
+    runtime: docker
+    dockerfilePath: ./backend/services/notification-service/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENV
+        value: production
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: wanderplan-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: wanderplan-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: wanderplan-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: wanderplan-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: wanderplan-db
+          property: password
+      - key: KAFKA_BROKERS
+        sync: false
+      - key: NOTIFY_KAFKA_CONSUMER_GROUP
+        value: notification-service-group
+
+  # ── search-service (8086) ─────────────────────────────────────────────────
+  - type: web
+    name: wanderplan-search-service
+    runtime: docker
+    dockerfilePath: ./backend/services/search-service/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENV
+        value: production
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: wanderplan-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: wanderplan-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: wanderplan-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: wanderplan-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: wanderplan-db
+          property: password
+
+  # ── frontend (React + Vite) ───────────────────────────────────────────────
+  - type: web
+    name: wanderplan-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false          # set to your api-gateway public URL, e.g. https://wanderplan-api-gateway.onrender.com
