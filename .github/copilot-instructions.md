@@ -95,3 +95,51 @@ WanderPlan is an AI-powered travel itinerary planning platform. It consists of a
 - `docker-compose.yml` must start Prometheus (scraping all services) and Grafana with a pre-provisioned datasource and dashboards in `/deployments/grafana/dashboards/`.
 - Each service Grafana dashboard must show: RPS, P50/P95/P99 latency, error rate, active DB connections, Kafka consumer lag (notification-service), and goroutine count.
 - All HTTP routes, DB queries, Kafka produce/consume operations, and gRPC calls must be individually instrumented.
+
+---
+
+## Session Handover & Task Tracking Rules
+
+- A file named `WORKLOG.md` at the workspace root is the **single source of truth** for all work across sessions.
+- **At the start of every session**, read `WORKLOG.md` before doing any work. Identify the next `[ ]` (TODO) item and start there.
+- **After completing each atomic step**, immediately update `WORKLOG.md`:
+  - Move the item from `### TODO` to `### DONE` with a `[x]` checkbox and the date completed.
+  - Move the next planned item from `### PLANNED` into `### TODO` if the queue is empty.
+- **A prompt/request is only considered done** when every step broken out from it is marked `[x]` in `WORKLOG.md`.
+- Break every user request into discrete, atomic steps before starting. Add all steps to `### PLANNED` first, then move the first one to `### TODO`.
+- `WORKLOG.md` must always contain:
+  - `### DONE` — completed items with `[x]`, file(s) changed, and completion date.
+  - `### TODO` — the single item currently in progress with `[ ]`.
+  - `### PLANNED` — all upcoming steps in priority order with `[ ]`.
+  - `### NOTES` — any blockers, decisions, or context future sessions must know.
+- Never delete entries from `WORKLOG.md`. Preserve the full history so any session can reconstruct what happened.
+- If a step is blocked, record the blocker under `### NOTES` and move to the next unblocked item.
+- Commit `WORKLOG.md` together with every code change so the file is always in sync with the actual repository state.
+
+---
+
+## Deployment Verification Rules
+
+- **Code is only "done" when it is live and verified on Render.com.** Pushing to `main` is a prerequisite, not the finish line.
+- After every `git push origin main`, wait for all affected Render services to finish building and deploying before declaring the task complete. A deploy that is still "In Progress" or "Failed" means the task is NOT done.
+- **Before ending any session that touched backend code**, verify every affected service's `/healthz` endpoint returns HTTP 200:
+  ```
+  curl -sf https://<service-name>.onrender.com/healthz
+  ```
+  If any service returns non-200 or times out, diagnose the failure (check Render logs via the dashboard or API), fix it, and redeploy before closing the session.
+- **Render deploy failure checklist** — if a service fails to deploy, check in this order:
+  1. Docker build errors (missing files, wrong build context, import errors).
+  2. Config / env var issues (missing required env vars, wrong key names).
+  3. Database connection errors (wrong host/port, missing credentials, migrations not run).
+  4. gRPC dial errors (wrong address or port for inter-service calls).
+  5. Panic / runtime errors visible in Render's log stream.
+- **Render service URLs** (use these for health checks):
+  - api-gateway: `https://wanderplan-api-gateway.onrender.com/healthz`
+  - auth-service: `https://wanderplan-auth-service.onrender.com/healthz`
+  - trip-service: `https://wanderplan-trip-service.onrender.com/healthz`
+  - user-service: `https://wanderplan-user-service.onrender.com/healthz`
+  - collaboration-service: `https://wanderplan-collaboration-service.onrender.com/healthz`
+  - notification-service: `https://wanderplan-notification-service.onrender.com/healthz`
+  - search-service: `https://wanderplan-search-service.onrender.com/healthz`
+- Use the Render API (`https://api.render.com/v1/`) with the project API key to check deploy status programmatically when needed. The key is stored in Render's dashboard under Account → API Keys.
+- Do not call `task_complete` until all affected `/healthz` endpoints confirm HTTP 200.
