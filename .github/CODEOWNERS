@@ -1,0 +1,27 @@
+# GitHub CODEOWNERS - All code requires agamrai0123 approval
+
+# All files
+* @agamrai0123
+
+# Frontend code
+/frontend/ @agamrai0123
+/frontend/src/**/*.tsx @agamrai0123
+/frontend/src/**/*.ts @agamrai0123
+
+# Backend code
+/backend/ @agamrai0123
+/backend/services/**/*.go @agamrai0123
+/backend/pkg/**/*.go @agamrai0123
+
+# Infrastructure
+/migrations/ @agamrai0123
+/deployments/ @agamrai0123
+/.github/workflows/ @agamrai0123
+
+# Configuration
+/Makefile @agamrai0123
+/docker-compose.yml @agamrai0123
+
+# Documentation
+/docs/ @agamrai0123
+/*.md @agamrai0123
