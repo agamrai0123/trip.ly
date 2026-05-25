@@ -109,6 +109,16 @@ Each context doc is machine-readable and compact. It contains:
 
 ---
 
+## Session Coordination Rules (concurrent sessions)
+
+- **At the very start of every session**, before touching any source file, read `SESSIONS.md` and check the **Active Claims** table.
+- **Claim your task** by adding a row to `SESSIONS.md` and committing + pushing it immediately. This is the distributed lock — the first push wins.
+- **Never work on an entity that is already claimed** by another session. Pick a different unclaimed task from `WORKLOG.md`, or wait.
+- **Release your claim** (remove your row from `SESSIONS.md`) as part of the final commit when the task is done.
+- Full protocol (claim format, stale claim policy, overlap detection) is in `.github/instructions/session-coordination.instructions.md`.
+
+---
+
 ## Session Handover & Task Tracking Rules
 
 - **At the start of every session**, read `WORKLOG.md` first. It is a thin index showing which context doc has the next pending `todo:`.
