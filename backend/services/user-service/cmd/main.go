@@ -90,6 +90,7 @@ func main() {
 	svc := internal.NewUserService(userRepo, tripSvcAddr)
 	handlers := internal.NewHandlers(svc)
 	reg := internal.NewRegistry()
+	reg.MustRegister(database.NewPoolCollector(pool, "user-service"))
 
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)

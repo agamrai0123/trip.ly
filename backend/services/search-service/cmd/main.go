@@ -85,6 +85,7 @@ func main() {
 	svc := internal.NewSearchService(placesClient, tripRepo)
 	handlers := internal.NewHandlers(svc)
 	reg := internal.NewRegistry()
+	reg.MustRegister(database.NewPoolCollector(pool, "search-service"))
 
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)

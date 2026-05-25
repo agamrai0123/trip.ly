@@ -1,8 +1,8 @@
 # ctx:collaboration-service | 2026-05-24 | HTTP:8084
 ## state
 todo: -
-planned: Proto collaboration.proto(RPCs; make proto) | Dockerfile(multi-stage,EXPOSE 8084,HEALTHCHECK /healthz)
-done: context-doc@2026-05-24 | scaffold+implement@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go+service_test.go)@2026-05-25
+planned: Dockerfile(multi-stage,EXPOSE 8084,HEALTHCHECK /healthz)
+done: context-doc@2026-05-24 | scaffold+implement@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go+service_test.go)@2026-05-25 | proto(collaboration.proto+gen)@2026-05-25
 errors: -
 _update when: collaborator roles/endpoints/Kafka events/collaborators schema change_
 

@@ -96,6 +96,7 @@ func main() {
 	svc := internal.NewAuthService(&cfg, userRepo, rtRepo, jwtMgr, producer)
 	handlers := internal.NewHandlers(svc, &cfg)
 	reg := internal.NewRegistry()
+	reg.MustRegister(database.NewPoolCollector(pool, "auth-service"))
 
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)

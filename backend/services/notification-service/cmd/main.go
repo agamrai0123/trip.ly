@@ -85,6 +85,7 @@ func main() {
 	svc := internal.NewNotificationService(repo)
 	handlers := internal.NewHandlers(svc, hub)
 	reg := internal.NewRegistry()
+	reg.MustRegister(database.NewPoolCollector(pool, "notification-service"))
 
 	// Start Kafka consumer if brokers are configured.
 	var consumer *internal.EventConsumer

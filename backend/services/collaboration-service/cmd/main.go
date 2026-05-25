@@ -89,6 +89,7 @@ func main() {
 	svc := internal.NewCollaborationService(repo, producer)
 	handlers := internal.NewHandlers(svc)
 	reg := internal.NewRegistry()
+	reg.MustRegister(database.NewPoolCollector(pool, "collaboration-service"))
 
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)

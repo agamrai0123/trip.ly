@@ -1,0 +1,72 @@
+// notification.proto defines the gRPC contract for the WanderPlan notification-service.
+syntax = "proto3";
+
+package wanderplan.v1;
+
+option go_package = "wanderplan/proto/gen/wanderplan/v1;wanderplanv1";
+
+// NotificationService manages in-app notifications for users.
+service NotificationService {
+  // ListNotifications returns a paginated list of notifications for a user.
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  // MarkRead marks a single notification as read.
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
+  // MarkAllRead marks all unread notifications for a user as read.
+  rpc MarkAllRead(MarkAllReadRequest) returns (MarkAllReadResponse);
+}
+
+// ListNotificationsRequest identifies the user and supports pagination.
+message ListNotificationsRequest {
+  // user_id is the UUID of the user whose notifications to fetch.
+  string user_id = 1;
+  // limit caps the number of results returned (0 means use server default).
+  int32 limit = 2;
+  // offset is the number of records to skip for pagination.
+  int32 offset = 3;
+}
+
+// Notification carries a single notification record.
+message Notification {
+  // id is the UUID of the notification.
+  string id = 1;
+  // user_id is the UUID of the recipient user.
+  string user_id = 2;
+  // type is the event type (e.g. "collab.invite", "trip.update").
+  string type = 3;
+  // title is the short notification heading.
+  string title = 4;
+  // body is the full notification message.
+  string body = 5;
+  // read_at is the RFC 3339 timestamp when the notification was read (empty if unread).
+  string read_at = 6;
+  // created_at is the RFC 3339 timestamp when the notification was created.
+  string created_at = 7;
+}
+
+// ListNotificationsResponse carries the page of notifications.
+message ListNotificationsResponse {
+  // notifications is the ordered list of notifications for the user.
+  repeated Notification notifications = 1;
+  // total is the total number of notifications (for pagination UI).
+  int32 total = 2;
+}
+
+// MarkReadRequest identifies the notification to mark as read.
+message MarkReadRequest {
+  // notification_id is the UUID of the notification to mark read.
+  string notification_id = 1;
+  // user_id is the UUID of the owning user (for authorisation).
+  string user_id = 2;
+}
+
+// MarkReadResponse is an empty acknowledgement that the notification was marked read.
+message MarkReadResponse {}
+
+// MarkAllReadRequest identifies the user whose notifications to mark all read.
+message MarkAllReadRequest {
+  // user_id is the UUID of the user whose notifications to mark all read.
+  string user_id = 1;
+}
+
+// MarkAllReadResponse is an empty acknowledgement that all notifications were marked read.
+message MarkAllReadResponse {}

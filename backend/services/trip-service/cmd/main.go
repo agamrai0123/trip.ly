@@ -95,6 +95,7 @@ func main() {
 	svc := internal.NewTripService(tripRepo, dayRepo, itemRepo, producer)
 	handlers := internal.NewHandlers(svc)
 	reg := internal.NewRegistry()
+	reg.MustRegister(database.NewPoolCollector(pool, "trip-service"))
 
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)

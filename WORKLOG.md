@@ -38,7 +38,7 @@
 
 ### TODO
 - [x] **[P1] Frontend API wiring** — lib/api.ts created, Phases 1-3 complete; remaining: WS notifications, search bar, settings (tracked in frontend context doc)
-- [ ] **[P3] Missing protos** — collaboration.proto, notification.proto, search.proto
+- [x] **[P3] Missing protos** — collaboration.proto, notification.proto, search.proto (buf lint clean; Go code regenerated) @2026-05-25
 - [ ] **[P3] Grafana dashboard panels** — verify wanderplan-services.json has real panels
 - [ ] **[P3] Migration 000002** — add_places_cache with GIN tsvector index
 
