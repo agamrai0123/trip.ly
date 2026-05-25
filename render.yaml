@@ -116,6 +116,8 @@ services:
           property: password
       - key: KAFKA_BROKERS
         sync: false          # e.g. "your-cluster.upstash.io:9092"
+      - key: FRONTEND_URL
+        value: https://wanderplan-frontend.onrender.com
 
   # ── trip-service (8082) ───────────────────────────────────────────────────
   - type: web
@@ -313,7 +315,7 @@ services:
   - type: web
     name: wanderplan-frontend
     runtime: static
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm install --include=dev && npm run build
     staticPublishPath: ./frontend/dist
     pullRequestPreviewsEnabled: true
     headers:

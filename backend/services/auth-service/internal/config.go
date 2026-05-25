@@ -19,8 +19,9 @@ type Config struct {
 	CORS       CORSCfg      `mapstructure:"cors"`
 	RateLimit  RateLimitCfg `mapstructure:"rate_limiting"`
 	Cookie     CookieCfg    `mapstructure:"cookie"`
-	JWTPrivKey string       `mapstructure:"jwt_private_key"`
-	JWTPubKey  string       `mapstructure:"jwt_public_key"`
+	JWTPrivKey  string      `mapstructure:"jwt_private_key"`
+	JWTPubKey   string      `mapstructure:"jwt_public_key"`
+	FrontendURL string      `mapstructure:"frontend_url"`
 }
 
 type LoggingCfg struct {

@@ -7,15 +7,18 @@ import { AppProvider } from "@/store/AppContext";
 import { Header } from "@/components/Header";
 import { RequireAuth } from "@/components/RequireAuth";
 import Index from "./pages/Index.tsx";
-import Signup from "./pages/Signup.tsx";
+import AuthCallback from "./pages/AuthCallback.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import CityDetail from "./pages/CityDetail.tsx";
 import Trips from "./pages/Trips.tsx";
 import TripDetail from "./pages/TripDetail.tsx";
-import PostDetail from "./pages/PostDetail.tsx";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 30_000 },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -27,10 +30,9 @@ const App = () => (
           <Header />
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/signup" element={<Signup />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
             <Route path="/city/:id" element={<RequireAuth><CityDetail /></RequireAuth>} />
-            <Route path="/post/:id" element={<RequireAuth><PostDetail /></RequireAuth>} />
             <Route path="/trips" element={<RequireAuth><Trips /></RequireAuth>} />
             <Route path="/trips/:id" element={<RequireAuth><TripDetail /></RequireAuth>} />
             <Route path="*" element={<NotFound />} />

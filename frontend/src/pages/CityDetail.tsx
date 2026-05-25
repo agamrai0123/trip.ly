@@ -1,31 +1,20 @@
 import { Link, useParams } from "react-router-dom";
-import { cities, tripPosts } from "@/data/mock";
-import { useApp } from "@/store/AppContext";
-import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowUp, Calendar, DollarSign, MapPin, MessageCircle, Sun } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-
-type SortKey = "likes" | "budget" | "days";
+import { cities } from "@/data/mock";
+import { useQuery } from "@tanstack/react-query";
+import { searchTrips } from "@/lib/api";
+import { ArrowLeft, Calendar, DollarSign, MapPin, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 
 const CityDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { likes, toggleLike, userPosts, commentsByPost } = useApp();
-  const [sort, setSort] = useState<SortKey>("likes");
-
   const city = cities.find(c => c.id === id);
-  const allPosts = useMemo(() => {
-    const list = [...tripPosts.filter(p => p.cityId === id), ...userPosts.filter(p => p.cityId === id)];
-    return list.map(p => ({ ...p, likes: likes[p.id]?.count ?? p.likes }));
-  }, [id, userPosts, likes]);
 
-  const sorted = useMemo(() => {
-    const arr = [...allPosts];
-    if (sort === "likes") arr.sort((a, b) => b.likes - a.likes);
-    if (sort === "budget") arr.sort((a, b) => a.totalBudget - b.totalBudget);
-    if (sort === "days") arr.sort((a, b) => a.days - b.days);
-    return arr;
-  }, [allPosts, sort]);
+  const { data: trips = [], isLoading } = useQuery({
+    queryKey: ["search-trips", city?.name],
+    queryFn: () => searchTrips(city?.name ?? ""),
+    enabled: Boolean(city?.name),
+  });
 
   if (!city) {
     return (
@@ -57,80 +46,59 @@ const CityDetail = () => {
       <section className="container -mt-8 pb-20">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 glass p-4">
           <div>
-            <div className="font-display text-xl font-semibold">{sorted.length} traveler itineraries</div>
-            <div className="text-xs text-muted-foreground">Click a post to open the full itinerary</div>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Sort by</span>
-            {(["likes", "budget", "days"] as SortKey[]).map(k => (
-              <button
-                key={k}
-                onClick={() => setSort(k)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition ${
-                  sort === k ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {k === "likes" ? "Most loved" : k === "budget" ? "Lowest budget" : "Shortest"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {sorted.map((post, idx) => {
-            const liked = likes[post.id]?.liked ?? false;
-            const commentCount = post.comments.length + (commentsByPost[post.id]?.length ?? 0);
-            return (
-              <article key={post.id} className="group flex gap-3 overflow-hidden rounded-2xl border border-border/60 bg-card-grad p-3 shadow-card transition hover:border-primary/40 hover:shadow-glow">
-                {/* Vote column */}
-                <div className="flex w-10 flex-none flex-col items-center gap-1 pt-1">
-                  <button
-                    onClick={(e) => { e.preventDefault(); toggleLike(post.id, tripPosts.find(p => p.id === post.id)?.likes ?? post.likes); }}
-                    className={`grid h-8 w-8 place-items-center rounded-lg transition ${liked ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
-                    aria-label="Upvote"
-                  >
-                    <ArrowUp className={`h-5 w-5 ${liked ? "fill-current" : ""}`} />
-                  </button>
-                  <span className={`text-xs font-semibold ${liked ? "text-primary" : ""}`}>{post.likes}</span>
-                </div>
-
-                {/* Content */}
-                <Link to={`/post/${post.id}`} className="flex flex-1 gap-3 min-w-0">
-                  <img src={post.cover} alt={post.title} loading="lazy" className="hidden sm:block h-28 w-36 flex-none rounded-xl object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="rounded-full bg-secondary px-2 py-0.5">#{idx + 1}</span>
-                      <Avatar className="h-5 w-5">
-                        <AvatarImage src={post.author.avatar} alt={post.author.name} />
-                        <AvatarFallback>{post.author.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <span>posted by {post.author.name}</span>
-                    </div>
-                    <h3 className="mt-1.5 line-clamp-2 font-display text-xl font-semibold leading-snug tracking-tight group-hover:text-primary">
-                      {post.title}
-                    </h3>
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.summary}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary" className="gap-1.5"><Calendar className="h-3 w-3" /> {post.days}d</Badge>
-                      <Badge variant="secondary" className="gap-1.5"><DollarSign className="h-3 w-3" /> ${post.totalBudget.toLocaleString()}</Badge>
-                      <Badge variant="secondary" className="gap-1.5"><Sun className="h-3 w-3" /> {post.bestTime}</Badge>
-                      <Badge variant="secondary" className="gap-1.5"><MapPin className="h-3 w-3" /> {post.places.length} places</Badge>
-                      <span className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <MessageCircle className="h-3.5 w-3.5" /> {commentCount}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              </article>
-            );
-          })}
-
-          {sorted.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
-              No itineraries here yet. Be the first to share one.
+            <div className="font-display text-xl font-semibold">
+              {isLoading ? "Loading..." : `${trips.length} trip${trips.length !== 1 ? "s" : ""} to ${city.name}`}
             </div>
-          )}
+            <div className="text-xs text-muted-foreground">Real trips planned by travelers in your community</div>
+          </div>
+          <Link to="/trips">
+            <Button variant="secondary" size="sm">
+              <Plus className="mr-1.5 h-4 w-4" /> Start planning
+            </Button>
+          </Link>
         </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        ) : trips.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border p-14 text-center">
+            <p className="text-muted-foreground">No trips to {city.name} yet.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Be the first to plan one.</p>
+            <Link to="/trips" className="mt-4 inline-block">
+              <Button className="bg-cta text-primary-foreground shadow-glow">Plan a trip here</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {trips.map(trip => {
+              const dateRange = trip.start_date && trip.end_date
+                ? `${format(new Date(trip.start_date), "MMM d")} – ${format(new Date(trip.end_date), "MMM d, yyyy")}`
+                : null;
+              return (
+                <article key={trip.id} className="group overflow-hidden rounded-2xl border border-border/60 bg-card-grad p-4 shadow-card transition hover:border-primary/40 hover:shadow-glow">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <h3 className="font-display text-xl font-semibold leading-snug tracking-tight group-hover:text-primary">{trip.title}</h3>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        {dateRange && (
+                          <span className="inline-flex items-center gap-1.5"><Calendar className="h-4 w-4" />{dateRange}</span>
+                        )}
+                        {trip.budget_total > 0 && (
+                          <span className="inline-flex items-center gap-1.5"><DollarSign className="h-4 w-4" />${trip.budget_total.toLocaleString()} {trip.currency}</span>
+                        )}
+                      </div>
+                    </div>
+                    <Link to={`/trips/${trip.id}`}>
+                      <Button variant="secondary" size="sm">View</Button>
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );
