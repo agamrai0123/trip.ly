@@ -24,7 +24,7 @@
     "allowed_origins": ["http://localhost:5173"]
   },
   "rate_limiting": {
-    "rps": 30,
-    "burst": 60
+    "rps": 1000,
+    "burst": 2000
   }
 }

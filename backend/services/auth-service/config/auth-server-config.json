@@ -42,8 +42,8 @@
     "allowed_origins": ["http://localhost:5173"]
   },
   "rate_limiting": {
-    "rps": 20,
-    "burst": 40
+    "rps": 1000,
+    "burst": 2000
   },
   "cookie": {
     "domain": "localhost",

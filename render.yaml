@@ -328,5 +328,7 @@ services:
         source: /*
         destination: /index.html
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: VITE_API_BASE_URL
-        sync: false          # set to your api-gateway public URL, e.g. https://wanderplan-api-gateway.onrender.com
+        value: https://wanderplan-api-gateway.onrender.com
