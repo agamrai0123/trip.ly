@@ -132,3 +132,4 @@ coverage.html
 *.bak
 *.orig
 *.patch
+frontend/.git_backup/
