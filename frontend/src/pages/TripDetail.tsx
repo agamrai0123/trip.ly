@@ -1,10 +1,10 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   fetchTrip, fetchTripDays, fetchDayItems, reorderItems, createDayItem, deleteItem,
-  fetchCollaborators, inviteCollaborator, removeCollaborator,
-  type ApiTrip, type ApiDay, type ApiItem, type CreateItemBody, type ApiCollaborator,
+  fetchCollaborators, inviteCollaborator, removeCollaborator, searchPlaces,
+  type ApiTrip, type ApiDay, type ApiItem, type CreateItemBody, type ApiCollaborator, type ApiPlace,
 } from "@/lib/api";
 import { ArrowLeft, Calendar, DollarSign, GripVertical, MapPin, Plus, Trash2, Users, UserMinus, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -341,7 +341,7 @@ function AddItemDialog({ tripId, day, days, onClose, qc }: {
           </div>
           <div>
             <Label htmlFor="ai-location">Location</Label>
-            <Input id="ai-location" value={location} onChange={e => setLocation(e.target.value)} placeholder="Address or area" className="mt-1" />
+            <PlaceAutocomplete value={location} onChange={setLocation} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -455,6 +455,91 @@ function CollaboratorsPanel({ tripId }: { tripId: string }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Debounced place autocomplete input backed by GET /api/v1/search/places.
+ * Calls onChange with the selected place's full address string.
+ */
+function PlaceAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [input, setInput] = useState(value);
+  const [debounced, setDebounced] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync external value if it changes (e.g. form reset)
+  useEffect(() => { setInput(value); }, [value]);
+
+  // 400 ms debounce
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(input.trim()), 400);
+    return () => clearTimeout(t);
+  }, [input]);
+
+  const { data: suggestions = [], isFetching } = useQuery({
+    queryKey: ["places", debounced],
+    queryFn: () => searchPlaces(debounced),
+    enabled: debounced.length >= 2,
+    staleTime: 60_000,
+  });
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleSelect = (place: ApiPlace) => {
+    const val = place.address || place.name;
+    setInput(val);
+    onChange(val);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} className="relative mt-1">
+      <Input
+        id="ai-location"
+        value={input}
+        onChange={(e) => {
+          setInput(e.target.value);
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+        placeholder="Address or area"
+        autoComplete="off"
+      />
+      {open && debounced.length >= 2 && (
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-border/80 bg-card shadow-card">
+          {isFetching && (
+            <div className="px-3 py-2 text-xs text-muted-foreground">Searching…</div>
+          )}
+          {!isFetching && suggestions.length === 0 && (
+            <div className="px-3 py-2 text-xs text-muted-foreground">No results found.</div>
+          )}
+          {suggestions.slice(0, 6).map((place) => (
+            <button
+              key={place.id}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(place); }}
+              className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm first:rounded-t-xl last:rounded-b-xl hover:bg-secondary"
+            >
+              <span className="font-medium">{place.name}</span>
+              {place.address && (
+                <span className="text-xs text-muted-foreground">{place.address}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 ## state
 todo: -
 planned: -
-done: all 7 packages implemented@2026-05-24 | context-doc@2026-05-24 | Migration 000001_init@2026-05-24 | Migration 000002_add_search_vector(search_vector+GIN on trips;GIN on places_cache.results)@2026-05-25 | pkg/database/metrics.go(PgxPoolCollector)@2026-05-25 | pkg/middleware.Metrics():removed namespace/subsystem prefix(metrics now http_requests_total+http_request_duration_seconds unprefixed);fixed status label to numeric strconv.Itoa();removed broken goroutines gauge@2026-05-26
+done: all 7 packages implemented@2026-05-24 | context-doc@2026-05-24 | Migration 000001_init(fixed:user_id,budget_total,visibility,trip_id on items,order_index)@2025-07-26 | Migration 000003_fix_trips_and_items(ALTER for live DB that had old 000001)@2025-07-26 | Migration 000002_add_search_vector(search_vector+GIN on trips;GIN on places_cache.results)@2026-05-25 | pkg/database/metrics.go(PgxPoolCollector)@2026-05-25 | pkg/middleware.Metrics():removed namespace/subsystem prefix(metrics now http_requests_total+http_request_duration_seconds unprefixed);fixed status label to numeric strconv.Itoa();removed broken goroutines gauge@2026-05-26
 errors: -
 _update when: package added/function sig changed/new config keys/error codes/new middleware_
 

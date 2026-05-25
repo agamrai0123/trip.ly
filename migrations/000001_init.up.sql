@@ -29,22 +29,23 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON wanderplan.refresh_toke
 -- ── trips ─────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS wanderplan.trips (
     id              TEXT        PRIMARY KEY,
-    owner_id        TEXT        NOT NULL REFERENCES wanderplan.users(id) ON DELETE CASCADE,
+    user_id         TEXT        NOT NULL REFERENCES wanderplan.users(id) ON DELETE CASCADE,
     title           TEXT        NOT NULL,
     description     TEXT        NOT NULL DEFAULT '',
     destination     TEXT        NOT NULL DEFAULT '',
     cover_image_url TEXT        NOT NULL DEFAULT '',
     start_date      DATE,
     end_date        DATE,
-    status          TEXT        NOT NULL DEFAULT 'draft',  -- draft|planned|completed
-    budget          NUMERIC(12,2) NOT NULL DEFAULT 0,
+    status          TEXT        NOT NULL DEFAULT 'draft',     -- draft|planned|completed
+    visibility      TEXT        NOT NULL DEFAULT 'private',   -- private|shared|public
+    budget_total    NUMERIC(12,2) NOT NULL DEFAULT 0,
     currency        TEXT        NOT NULL DEFAULT 'USD',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_trips_owner_id  ON wanderplan.trips(owner_id);
-CREATE INDEX IF NOT EXISTS idx_trips_status    ON wanderplan.trips(status);
+CREATE INDEX IF NOT EXISTS idx_trips_user_id  ON wanderplan.trips(user_id);
+CREATE INDEX IF NOT EXISTS idx_trips_status   ON wanderplan.trips(status);
 
 -- ── itinerary_days ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS wanderplan.itinerary_days (
@@ -65,6 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_itinerary_days_trip_id ON wanderplan.itinerary_da
 CREATE TABLE IF NOT EXISTS wanderplan.itinerary_items (
     id            TEXT        PRIMARY KEY,
     day_id        TEXT        NOT NULL REFERENCES wanderplan.itinerary_days(id) ON DELETE CASCADE,
+    trip_id       TEXT        NOT NULL REFERENCES wanderplan.trips(id) ON DELETE CASCADE,
     title         TEXT        NOT NULL,
     description   TEXT        NOT NULL DEFAULT '',
     type          TEXT        NOT NULL DEFAULT 'activity',  -- activity|transport|accommodation|meal
@@ -74,12 +76,13 @@ CREATE TABLE IF NOT EXISTS wanderplan.itinerary_items (
     cost          NUMERIC(10,2) NOT NULL DEFAULT 0,
     currency      TEXT        NOT NULL DEFAULT 'USD',
     place_id      TEXT        NOT NULL DEFAULT '',
-    position      INT         NOT NULL DEFAULT 0,
+    order_index   INT         NOT NULL DEFAULT 0,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_itinerary_items_day_id ON wanderplan.itinerary_items(day_id);
+CREATE INDEX IF NOT EXISTS idx_itinerary_items_day_id  ON wanderplan.itinerary_items(day_id);
+CREATE INDEX IF NOT EXISTS idx_itinerary_items_trip_id ON wanderplan.itinerary_items(trip_id);
 
 -- ── collaborators ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS wanderplan.collaborators (

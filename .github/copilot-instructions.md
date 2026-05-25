@@ -1,5 +1,19 @@
 # WanderPlan — GitHub Copilot Instructions
 
+## Model Routing (read first)
+
+Before starting any task, route it to the right model:
+
+- **Default entry point**: type `/delegate` + your task. Qwen3.6 35B (local Ollama) runs first — zero cloud tokens. It either completes the task locally or emits a one-line escalation to a cloud prompt.
+- **Simple tasks** (explain, refactor one function, boilerplate): `/explain-offline`, `/refactor-offline`, `/offline-task` → Qwen3.6 35B
+- **Complex tasks** (multi-file feature, gRPC/proto, security audit): `/implement-feature`, `/online-task`, `/security-review-online` → Claude Sonnet 4.5
+
+> If you receive a task without a `/prompt`, default to cloud (current model) but mention that `/delegate` would be more token-efficient for simple sub-tasks.
+
+Full routing table: `.github/instructions/model-routing.instructions.md`
+
+---
+
 ## Project Overview
 WanderPlan is an AI-powered travel itinerary planning platform. It consists of a React 18 + TypeScript frontend and seven Go microservices communicating over HTTP, gRPC, and Kafka.
 
