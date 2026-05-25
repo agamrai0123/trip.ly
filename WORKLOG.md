@@ -1,86 +1,60 @@
-# WanderPlan — Session Worklog
+# WanderPlan — Worklog Index
 
-> **HOW TO USE THIS FILE (read before every session)**
->
-> 1. Read this entire file before touching any code.
-> 2. Pick the first `[ ]` item from **TODO** (or pull the next from **PLANNED** if TODO is empty).
-> 3. Break the work into atomic steps; record all steps in **PLANNED** first.
-> 4. Mark one step `[ ]` in **TODO** and work on it.
-> 5. When done: move it to **DONE** with `[x]`, date, and files changed.
-> 6. A user request is only finished when every derived step is `[x]`.
-> 7. Never delete history. Record blockers in **NOTES**.
+## Protocol
+1. Read this file. Find the first context doc with a pending `todo:`.
+2. Load that context doc (`docs/context/<entity>.md`). Work the `todo:` item.
+3. Update `todo:/planned:/done:` in the context doc after each step. Commit together.
+4. Cross-cutting items (no single owner) are tracked below.
+5. Rules are in `.github/copilot-instructions.md` — do not duplicate here.
 
----
+## Context Docs — Pending Work
+| Context doc | Status |
+|---|---|
+| [api-gateway](docs/context/api-gateway.md) | � LIVE — todo: README, .env.example, tests |
+| [auth-service](docs/context/auth-service.md) | 🟢 LIVE — todo: README, .env.example, tests |
+| [trip-service](docs/context/trip-service.md) | 🟢 LIVE — todo: README, .env.example, tests |
+| [user-service](docs/context/user-service.md) | 🟢 LIVE — todo: README, .env.example, tests |
+| [collaboration-service](docs/context/collaboration-service.md) | 🟢 LIVE — todo: collaboration.proto, README, tests |
+| [notification-service](docs/context/notification-service.md) | 🟢 LIVE — todo: notification.proto, README, tests |
+| [search-service](docs/context/search-service.md) | 🟢 LIVE — todo: search.proto, README, tests |
+| [frontend](docs/context/frontend.md) | 🔴 BLOCKER: api.ts missing, all pages use mock data |
+| [shared-packages](docs/context/shared-packages.md) | 🟠 PLANNED: 000002_add_places_cache migration |
 
-## MANDATORY RULES FOR EVERY SESSION
+## Cross-cutting TODO / PLANNED / DONE
 
-These are the non-negotiable constraints. Violating any of them requires an immediate fix.
+### DONE
+- [x] copilot-instructions.md session handover rules @2026-05-24
+- [x] WORKLOG.md created @2026-05-24
+- [x] Full rule compliance audit @2026-05-24
+- [x] Expanded PLANNED from spec (§1–§14), 28 tasks @2026-05-24
+- [x] All 9 Render resources provisioned (7 services + frontend + postgres) @2026-05-24
+- [x] Fix env var mismatch — flat DB_* overrides in all main.go; AUTH_SERVICE_GRPC_ADDR added @2026-05-24
+- [x] docs/context/ created (9 files) + docs/ARCHITECTURE.md @2026-05-24
+- [x] WORKLOG restructured — thin dispatcher, state moved into context docs @2026-05-24
+- [x] Root .gitignore created — covers *.exe, .env, *.pem, nul, logs, coverage @2025-07-26
+- [x] 4 committed exe files removed from git tracking (git rm --cached) @2025-07-26
+- [x] Rate limits raised — all services: rps=1000, burst=2000 (was 20/40) @2025-07-26
+- [x] docs/PROJECT_STATUS.md created — full audit: 47% complete, load test results, task delegation, 7-8 week estimate @2025-07-26
 
-### Backend (Go)
-- Framework: **Gin** only. No `net/http` handlers directly.
-- All errors go through `pkg/errors.AppError` — never `fmt.Errorf` in handlers.
-- Every response uses the standard envelope: `{ "data": …, "error": …, "meta": { "request_id": "…", "timestamp": "…" } }`.
-- Config via **Viper** from `.env` / env vars. Zero hardcoded values.
-- DB queries: **parameterised only** (`pgx` `$1`/`$2`). SQL string concat is forbidden.
-- Logging: **zerolog** + **lumberjack**. No `log.Println` or `fmt.Print`.
-- Prometheus: every service exposes `GET /metrics` and `GET /healthz`.
-- Graceful shutdown: handle `SIGTERM`/`SIGINT`, 10-second drain, close HTTP + gRPC + DB pool + Kafka.
-- Schema changes via **golang-migrate** files in `/migrations/` (`000001_init.up.sql`, `000001_init.down.sql`, …).
-- Dockerfiles: multi-stage (`golang:1.22-alpine` builder → `gcr.io/distroless/static-debian12` final). Build flag: `CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s"`. Non-root user. No `.env` in image. Pin base image versions.
-- New service: run `go work use ./services/<name>` inside `backend/`.
+### TODO
+- [ ] **[P1-BLOCKER] Frontend API wiring** — create lib/api.ts, wire all pages to react-query, real OAuth flow
+- [ ] **[P2] Tests** — Go *_test.go for all 7 services (handlers/service/repository layers, ≥80% coverage), frontend vitest
+- [ ] **[P2] .env.example** — root + per service (7 files)
+- [ ] **[P2] Service READMEs** — one per service (7 files)
+- [ ] **[P3] Missing protos** — collaboration.proto, notification.proto, search.proto
+- [ ] **[P3] Grafana dashboard panels** — verify wanderplan-services.json has real panels
+- [ ] **[P3] Migration 000002** — add_places_cache with GIN tsvector index
 
-### Auth
-- OAuth 2.0 PKCE — **Google and GitHub only**. No username/password flows.
-- RS256 JWTs, 15-minute expiry. Refresh tokens opaque, hashed in PostgreSQL, rotated on every use.
-- JWT validation: api-gateway calls auth-service via gRPC `ValidateToken`.
-- Access tokens: in-memory on client. Refresh tokens: httpOnly cookies set by backend only.
+## NOTES
+- Render service URLs: wanderplan-{api-gateway,auth-service,trip-service,user-service,collaboration-service,notification-service,search-service}.onrender.com
+- DB owned by Render postgres; all services use fromDatabase env refs in render.yaml
+- Kafka: external broker; KAFKA_BROKERS set manually in Render dashboard (sync:false)
+- Topics: auth-events, trip-events, collab-events
+- DB tables: users, refresh_tokens, trips, itinerary_days, itinerary_items, collaborators, trip_tags, notifications, audit_log, places_cache
 
-### Frontend (React + TypeScript)
-- React 18, **TypeScript strict mode**, zero TS errors.
-- UI: **shadcn/ui** (Radix) only. No other component libraries.
-- Styling: **Tailwind CSS** utilities only. No inline styles, CSS modules, or styled-components.
-- Dark/light: `next-themes` + `dark:` classes.
-- Routing: `react-router-dom` v6. No `window.location` manipulation.
-- Server state: `@tanstack/react-query` v5. No local state for API data.
-- Forms: `react-hook-form` + `zod`. No uncontrolled inputs or manual validation.
-- Dates: `date-fns` + `react-day-picker`. No `moment.js`.
-- Charts: `recharts`. Drag-and-drop: `@dnd-kit`.
-- API client: `axios` with JWT refresh interceptor (retry on 401).
-- All API base URLs from `VITE_API_BASE_URL` env var. No hardcoded `localhost` URLs in source.
-- ESLint must pass with zero errors. `npm run build` must succeed.
-- No mock/placeholder data in production code. All pages use `@tanstack/react-query`.
+- [x] **Create architecture relationship graph + per-entity context documents** — Created `docs/ARCHITECTURE.md` (system Mermaid diagram, inter-service communication map, DB table ownership, shared package dependencies, proto file map, frontend→backend API map). Created `docs/context/` with 8 context docs: api-gateway, auth-service, trip-service, user-service, collaboration-service, notification-service, search-service, frontend, shared-packages. Added `.github/instructions/context-maintenance.instructions.md` with auto-update rules. Updated `copilot-instructions.md` to reference context system. _(2026-05-24)_
 
-### Render.com Deployment
-- `render.yaml` at repo root defines all services as Infrastructure-as-Code.
-- Backend services: `runtime: docker`, reference `./backend/services/<name>/Dockerfile`.
-- Frontend: `runtime: static`, `buildCommand: cd frontend && npm install && npm run build`, `staticPublishPath: ./frontend/dist`.
-- Every service must have `healthCheckPath: /healthz`.
-- Secrets (`JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, OAuth creds, `KAFKA_BROKERS`) are `sync: false` — set manually in Render dashboard.
-- DB env vars (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`) use `fromDatabase` references, not hardcoded values.
-- `VITE_API_BASE_URL` must be set to the api-gateway's public Render URL (e.g. `https://wanderplan-api-gateway.onrender.com`).
 
-### WORKLOG Protocol
-- Read this file first every session.
-- One item in TODO at a time; all others in PLANNED.
-- Update DONE immediately after each step completes.
-- Commit WORKLOG.md with every code change.
-
----
-
-## DONE
-
-- [x] **Add session handover rule to copilot-instructions.md** — Added `## Session Handover & Task Tracking Rules` section. Files: `.github/copilot-instructions.md`. _(2026-05-24)_
-- [x] **Create initial WORKLOG.md** — This file established as handover document. _(2026-05-24)_
-- [x] **Full rule compliance audit + render.com deployment review** — Identified 8 violations; render.yaml exists in `main` branch only; Dockerfiles for backend services missing; 5 services unscaffolded; mock data still in frontend; no migrations, no docker-compose, empty README. WORKLOG.md updated with full context. _(2026-05-24)_
-- [x] **WORKLOG PLANNED section updated from spec document** — Read `wanderplan_copilot_prompt.docx` (§1–§14); expanded PLANNED from 13 vague items to 28 granular tasks grouped by priority (Blocking / Foundation / Services / Frontend / Infrastructure / Testing / Docs); NOTES updated with service port map, Kafka topics, all 10 DB table names, and full Render deployment context. Files: `WORKLOG.md`. _(2026-05-24)_
-- [x] **All 9 Render resources provisioned** — Deployed 7 Docker web services + 1 static frontend + 1 PostgreSQL via render.yaml Blueprint. JWT_PRIVATE_KEY + JWT_PUBLIC_KEY set on all 7 services via Render API. _(2026-05-24)_
-- [x] **Fix env var name mismatch for Render deployment** — All 7 service main.go files updated to override DB config (DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD) from flat env vars after Viper config load. auth-service also overrides KAFKA_BROKERS + OAuth credentials. trip/collab/notification-service override KAFKA_BROKERS. api-gateway overrides all service HTTP addresses + adds separate AUTH_SERVICE_GRPC_ADDR for gRPC auth validator (fixing a bug where HTTP proxy and gRPC validator used the same config field pointing to the wrong port). render.yaml updated with AUTH_SERVICE_GRPC_ADDR=wanderplan-auth-service:9081. Pushed to main → Render redeploy triggered. Files: backend/services/*/cmd/main.go, api-gateway/internal/config.go, api-gateway/config/api-gateway-config.json, render.yaml. _(2026-05-24)_
-
----
-
-## TODO
-
-_(no item currently in progress — pull the next from PLANNED)_
 
 ---
 

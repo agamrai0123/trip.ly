@@ -1,0 +1,134 @@
+# Root .gitignore — WanderPlan
+
+# ============================================================
+# Go binaries & build artifacts
+# ============================================================
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/bin/
+/tmp/
+dist/
+
+# Go module cache (only relevant if mistakenly inside repo)
+vendor/
+
+# Air (hot reload) build output
+tmp/
+
+# Build output directories
+backend/bin/
+backend/services/*/bin/
+backend/services/*/*.exe
+backend/services/*/cmd/*.exe
+backend/services/*/main.exe
+backend/*.exe
+
+# ============================================================
+# Windows artifacts
+# ============================================================
+nul
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# ============================================================
+# macOS artifacts
+# ============================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# ============================================================
+# Node / Frontend
+# ============================================================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.env.local
+frontend/.env.*.local
+*.local
+
+# Bun
+bun.lockb
+# (keep bun.lockb if you want reproducible installs — comment out above line)
+
+# ============================================================
+# Environment / Secrets — NEVER commit these
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+private.pem
+public.pem
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+log/
+logs/
+lumberjack/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# IDE & editor
+# ============================================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ============================================================
+# Docker
+# ============================================================
+.docker/
+
+# ============================================================
+# Test coverage
+# ============================================================
+coverage/
+*.coverprofile
+coverage.out
+coverage.html
+
+# ============================================================
+# Misc
+# ============================================================
+*.tmp
+*.bak
+*.orig
+*.patch

@@ -3,6 +3,17 @@
 ## Project Overview
 WanderPlan is an AI-powered travel itinerary planning platform. It consists of a React 18 + TypeScript frontend and seven Go microservices communicating over HTTP, gRPC, and Kafka.
 
+### Context Documents (read before working on an entity)
+Before modifying any service, shared package, or frontend code, read the relevant context document:
+- Architecture + relationship graph: `docs/ARCHITECTURE.md`
+- Per-entity context + work state: `docs/context/<entity>.md` (api-gateway, auth-service, trip-service, user-service, collaboration-service, notification-service, search-service, frontend, shared-packages)
+
+Each context doc is machine-readable and compact. It contains:
+- `## state` block with `todo:`, `planned:`, `done:`, `errors:` — the work queue for that entity
+- `## files`, `## routes`, `## env`, `## pkg`, `## db`, etc. — all facts about the entity
+
+**After every code change**, update the `done:` (and clear `todo:`) in the affected context doc(s).
+
 ---
 
 ## Architecture Rules
@@ -100,21 +111,13 @@ WanderPlan is an AI-powered travel itinerary planning platform. It consists of a
 
 ## Session Handover & Task Tracking Rules
 
-- A file named `WORKLOG.md` at the workspace root is the **single source of truth** for all work across sessions.
-- **At the start of every session**, read `WORKLOG.md` before doing any work. Identify the next `[ ]` (TODO) item and start there.
-- **After completing each atomic step**, immediately update `WORKLOG.md`:
-  - Move the item from `### TODO` to `### DONE` with a `[x]` checkbox and the date completed.
-  - Move the next planned item from `### PLANNED` into `### TODO` if the queue is empty.
-- **A prompt/request is only considered done** when every step broken out from it is marked `[x]` in `WORKLOG.md`.
-- Break every user request into discrete, atomic steps before starting. Add all steps to `### PLANNED` first, then move the first one to `### TODO`.
-- `WORKLOG.md` must always contain:
-  - `### DONE` — completed items with `[x]`, file(s) changed, and completion date.
-  - `### TODO` — the single item currently in progress with `[ ]`.
-  - `### PLANNED` — all upcoming steps in priority order with `[ ]`.
-  - `### NOTES` — any blockers, decisions, or context future sessions must know.
-- Never delete entries from `WORKLOG.md`. Preserve the full history so any session can reconstruct what happened.
-- If a step is blocked, record the blocker under `### NOTES` and move to the next unblocked item.
-- Commit `WORKLOG.md` together with every code change so the file is always in sync with the actual repository state.
+- **At the start of every session**, read `WORKLOG.md` first. It is a thin index showing which context doc has the next pending `todo:`.
+- **Load only the context doc(s)** you need for the current task (`docs/context/<entity>.md`). Do not load all context docs — load only relevant ones to save tokens.
+- **Per-entity work** (service implementation, frontend wiring, etc.) is tracked inside each `docs/context/<entity>.md` under `## state` with `todo:`, `planned:`, `done:`, `errors:`.
+- **Cross-cutting work** (migrations, docker-compose, READMEs, tests) is tracked in `WORKLOG.md` under Cross-cutting TODO/PLANNED/DONE.
+- **After completing each step**, update `todo:` → `done:` in the context doc. Update the status row in `WORKLOG.md`'s index table.
+- **A request is only done** when all derived steps are marked done.
+- Commit `WORKLOG.md` and the affected context doc(s) with every code change.
 
 ---
 
