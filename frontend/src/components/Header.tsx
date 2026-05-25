@@ -2,7 +2,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "@/store/AppContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchTrips, fetchNotifications, markAllNotificationsRead, markNotificationRead, type ApiNotification } from "@/lib/api";
-import { Bell, Compass, MapPin, Briefcase, Users2, LogOut, User } from "lucide-react";
+import { useNotificationsWS } from "@/hooks/useNotificationsWS";
+import { useTheme } from "next-themes";
+import { Bell, Compass, MapPin, Briefcase, Users2, LogOut, User, Settings, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -19,7 +21,11 @@ export const Header = () => {
   const loc = useLocation();
   const nav = useNavigate();
   const qc = useQueryClient();
+  const { theme, setTheme } = useTheme();
   const onAuth = loc.pathname === "/";
+
+  // Real-time notifications via WebSocket (supplements 30s polling)
+  useNotificationsWS(Boolean(user));
 
   const { data: trips = [] } = useQuery({
     queryKey: ["trips"],
@@ -75,9 +81,21 @@ export const Header = () => {
           <NavBtn to="/collaborations" icon={<Users2 className="h-4 w-4" />} active={loc.pathname.startsWith("/collaborations")}>
             Collaborate
           </NavBtn>
+          <NavBtn to="/settings" icon={<Settings className="h-4 w-4" />} active={loc.pathname === "/settings"}>
+            Settings
+          </NavBtn>
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Dark / Light theme toggle */}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="rounded-full p-2 text-muted-foreground transition hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
+
           {/* Notifications bell */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

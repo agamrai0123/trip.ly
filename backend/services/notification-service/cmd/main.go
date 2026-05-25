@@ -95,7 +95,7 @@ func main() {
 			kafka.TopicTripEvents,
 			kafka.TopicCollabEvents,
 		}
-		consumer, err = internal.NewEventConsumer(cfg.Kafka.Brokers, cfg.Kafka.ConsumerGroupID, topics, repo, hub)
+		consumer, err = internal.NewEventConsumer(cfg.Kafka.Brokers, cfg.Kafka.ConsumerGroupID, topics, repo, hub, reg)
 		if err != nil {
 			log.Warn().Err(err).Msg("kafka consumer init failed — notifications from events disabled")
 		} else {

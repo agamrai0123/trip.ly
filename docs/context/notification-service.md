@@ -1,8 +1,8 @@
 # ctx:notification-service | 2026-05-24 | HTTP:8085 WS:8085
 ## state
 todo: -
-planned: Dockerfile(multi-stage,EXPOSE 8085,HEALTHCHECK /healthz)
-done: context-doc@2026-05-24 | scaffold+implement@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go+service_test.go)@2026-05-25 | proto(notification.proto+gen)@2026-05-25
+planned: -
+done: context-doc@2026-05-24 | scaffold+implement@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go+service_test.go)@2026-05-25 | notification.proto+gen@2026-05-25 | db_pool_acquired_connections metric@2026-05-25 | proto(notification.proto+gen)@2026-05-25 | Dockerfile(multi-stage,EXPOSE 8085,HEALTHCHECK,LABEL)@2026-05-25 | kafka_consumer_lag GaugeVec(topic,partition labels)in consumer.go;reg passed to NewEventConsumer@2026-05-26
 errors: -
 _update when: Kafka topics/event types/WebSocket logic/endpoints/notifications schema/consumer group change_
 

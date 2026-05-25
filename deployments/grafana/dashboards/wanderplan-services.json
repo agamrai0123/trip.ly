@@ -97,6 +97,40 @@
           ]
         }
       }
+    },
+    {
+      "id": 6,
+      "title": "Active DB Connections",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "db_pool_acquired_connections{job=~\"$service\"}",
+          "legendFormat": "acquired {{job}}"
+        },
+        {
+          "expr": "db_pool_total_connections{job=~\"$service\"}",
+          "legendFormat": "total {{job}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Kafka Consumer Lag (notification-service)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "kafka_consumer_lag{job=\"notification-service\"}",
+          "legendFormat": "{{topic}} / partition {{partition}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 }
+      }
     }
   ]
 }

@@ -22,10 +22,13 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tzdata && \
     addgroup -S appgroup && adduser -S appuser -G appgroup
+LABEL service="notification-service" version="1.0.0" maintainer="WanderPlan"
 WORKDIR /app
 COPY --from=builder /app /app/notification-service
 COPY --chown=appuser:appgroup services/notification-service/config ./config
 
 USER appuser
 EXPOSE 8085
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://localhost:8085/healthz || exit 1
 ENTRYPOINT ["/app/notification-service"]

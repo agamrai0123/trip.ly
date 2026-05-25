@@ -21,7 +21,7 @@ func RegisterRoutes(
 	reg *prometheus.Registry,
 	cfg *Config,
 ) {
-	_, metricsHandler := pkgmw.Metrics("api-gateway", reg)
+	metricsMW, metricsHandler := pkgmw.Metrics("api-gateway", reg)
 
 	r.Use(
 		pkgmw.RequestID(),
@@ -29,6 +29,7 @@ func RegisterRoutes(
 		pkgmw.Recovery(),
 		pkgmw.CORS(cfg.CORS.AllowedOrigins),
 		pkgmw.RateLimit(cfg.RateLimit.RPS, cfg.RateLimit.Burst),
+		metricsMW,
 	)
 
 	// Health & metrics (unauthenticated)

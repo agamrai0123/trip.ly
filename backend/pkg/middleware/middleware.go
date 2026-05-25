@@ -3,6 +3,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -184,33 +185,21 @@ func RateLimit(rps float64, burst int) gin.HandlerFunc {
 
 // Metrics registers and returns a Gin middleware that instruments HTTP requests.
 // It also returns a promhttp.Handler for the /metrics endpoint.
-func Metrics(service string, reg *prometheus.Registry) (gin.HandlerFunc, http.Handler) {
+// The service parameter is used for logging only; metric names are unprefixed
+// so that Grafana dashboard queries (e.g. http_requests_total) match by Prometheus job label.
+func Metrics(_ string, reg *prometheus.Registry) (gin.HandlerFunc, http.Handler) {
 	httpRequests := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "wanderplan",
-		Subsystem: service,
-		Name:      "http_requests_total",
-		Help:      "Total HTTP requests.",
+		Name: "http_requests_total",
+		Help: "Total HTTP requests by method, path, and status code.",
 	}, []string{"method", "path", "status"})
 
 	httpDuration := prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "wanderplan",
-		Subsystem: service,
-		Name:      "http_request_duration_seconds",
-		Help:      "HTTP request latency.",
-		Buckets:   prometheus.DefBuckets,
+		Name:    "http_request_duration_seconds",
+		Help:    "HTTP request latency in seconds.",
+		Buckets: prometheus.DefBuckets,
 	}, []string{"method", "path"})
 
-	goroutines := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
-		Namespace: "wanderplan",
-		Subsystem: service,
-		Name:      "goroutines",
-		Help:      "Current goroutine count.",
-	}, func() float64 {
-		// runtime.NumGoroutine() imported lazily to avoid import cycle
-		return 0
-	})
-
-	reg.MustRegister(httpRequests, httpDuration, goroutines)
+	reg.MustRegister(httpRequests, httpDuration)
 
 	mw := func(c *gin.Context) {
 		start := time.Now()
@@ -220,7 +209,7 @@ func Metrics(service string, reg *prometheus.Registry) (gin.HandlerFunc, http.Ha
 		if path == "" {
 			path = "unknown"
 		}
-		status := http.StatusText(c.Writer.Status())
+		status := strconv.Itoa(c.Writer.Status())
 		httpRequests.WithLabelValues(c.Request.Method, path, status).Inc()
 		httpDuration.WithLabelValues(c.Request.Method, path).Observe(dur)
 	}

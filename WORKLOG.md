@@ -39,8 +39,8 @@
 ### TODO
 - [x] **[P1] Frontend API wiring** — lib/api.ts created, Phases 1-3 complete; remaining: WS notifications, search bar, settings (tracked in frontend context doc)
 - [x] **[P3] Missing protos** — collaboration.proto, notification.proto, search.proto (buf lint clean; Go code regenerated) @2026-05-25
-- [ ] **[P3] Grafana dashboard panels** — verify wanderplan-services.json has real panels
-- [ ] **[P3] Migration 000002** — add_places_cache with GIN tsvector index
+- [x] **[P3] Grafana dashboard panels** — wanderplan-services.json has 7 real panels: RPS, P50/P95/P99 latency, error rate, goroutines, service health, active DB connections (db_pool_acquired/total_connections), Kafka consumer lag (notification-service) @2026-05-25. Metric instrumentation fixed @2026-05-26: pkg/middleware.Metrics() now exports unprefixed http_requests_total + http_request_duration_seconds (removed wanderplan_<svc>_ namespace), status label numeric (strconv.Itoa), goroutines gauge removed (go_goroutines from GoCollector); api-gateway routes.go wired metricsMW; notification-service consumer.go now records kafka_consumer_lag{topic,partition} GaugeVec.
+- [x] **[P3] Migration 000002** — 000002_add_search_vector.up/down.sql: adds search_vector GENERATED STORED tsvector + GIN index on trips; GIN jsonb_path_ops on places_cache.results @2026-05-25
 
 ### DONE (P2 — completed this session)
 - [x] **[P2] .env.example** — root + 7 service files created @2026-05-25
@@ -67,17 +67,18 @@
 
 ### 🔴 BLOCKING — Render Deploy
 
-- [ ] **[BLOCKER] Dockerfile — api-gateway** — `backend/services/api-gateway/Dockerfile`. Multi-stage: `golang:1.22-alpine` builder → `gcr.io/distroless/static-debian12` final. `CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/service ./cmd/...`. Non-root user. `EXPOSE 8080`. `HEALTHCHECK` via `/healthz`. `LABEL service=api-gateway`.
-- [ ] **[BLOCKER] Dockerfile — auth-service** — `backend/services/auth-service/Dockerfile`. Same pattern. `EXPOSE 8081 9081`.
+- [x] **[BLOCKER] Dockerfile — api-gateway** — `backend/services/api-gateway/Dockerfile`. Multi-stage alpine→alpine, LABEL, HEALTHCHECK /healthz, EXPOSE 8080. @2026-05-25
+- [x] **[BLOCKER] Dockerfile — auth-service** — `backend/services/auth-service/Dockerfile`. Same pattern. EXPOSE 8081 9081, HEALTHCHECK, LABEL. @2026-05-25
+- [x] **[BLOCKER] Dockerfiles — trip/user/collaboration/notification/search services** — All 5 Dockerfiles complete with LABEL, HEALTHCHECK, correct EXPOSE (trip:8082/9082, user:8083/9083, collab:8084, notif:8085, search:8086). @2026-05-25
 - [ ] **[BLOCKER] Copy render.yaml into develop branch** — File exists only in `main`; cherry-pick commit or recreate at repo root in `develop`. Required for Render blueprint to apply.
 
 ### 🟠 FOUNDATION — Migrations & Proto
 
 - [ ] **Migration 000001_init** — `/migrations/000001_init.up.sql` + `000001_init.down.sql`. Tables: `users (id, email, name, avatar_url, provider, provider_id, created_at, updated_at)`, `refresh_tokens (id, user_id, token_hash, expires_at, revoked, created_at)`, `trips (id, user_id, title, destination, cover_image_url, start_date, end_date, status, visibility, budget_total, currency, created_at, updated_at)`, `itinerary_days (id, trip_id, day_number, date, notes)`, `itinerary_items (id, day_id, trip_id, title, description, location, place_id, type, start_time, end_time, cost, currency, order_index, created_at, updated_at)`, `collaborators (id, trip_id, user_id, role, invited_at, accepted_at)`, `trip_tags (id, trip_id, tag)`, `notifications (id, user_id, type, payload jsonb, read, created_at)`, `audit_log (id, user_id, action, resource_type, resource_id, metadata jsonb, created_at)`.
-- [ ] **Migration 000002_add_places_cache** — `/migrations/000002_add_places_cache.up.sql` + `000002_add_places_cache.down.sql`. Table: `places_cache (id, place_id, name, lat, lng, address, photos jsonb, cached_at)`. Add `tsvector` column + GIN index on `trips` for full-text search.
-- [ ] **Proto — collaboration.proto** — `/backend/proto/wanderplan/v1/collaboration.proto`. RPCs: `InviteCollaborator`, `ListCollaborators`, `UpdateRole`, `RemoveCollaborator`. Comment every RPC and field. Run `make proto` after.
-- [ ] **Proto — notification.proto** — `/backend/proto/wanderplan/v1/notification.proto`. RPCs: `ListNotifications`, `MarkRead`, `MarkAllRead`. Comment all. Run `make proto`.
-- [ ] **Proto — search.proto** — `/backend/proto/wanderplan/v1/search.proto`. RPCs: `SearchPlaces`, `SearchTrips`. Comment all. Run `make proto`.
+- [x] **Migration 000002_add_places_cache** — `000002_add_search_vector.up/down.sql`. Adds `search_vector` GENERATED tsvector + GIN index on `trips`; GIN `jsonb_path_ops` on `places_cache.results`. @2026-05-25
+- [x] **Proto — collaboration.proto** — RPCs: `ListCollaborators`, `InviteCollaborator`, `UpdateCollaborator`, `RemoveCollaborator`. All fields commented. Go code generated. @2026-05-25
+- [x] **Proto — notification.proto** — RPCs: `ListNotifications`, `MarkRead`, `MarkAllRead`. All fields commented. Go code generated. @2026-05-25
+- [x] **Proto — search.proto** — RPCs: `SearchPlaces`, `SearchTrips`. All fields commented. Go code generated. @2026-05-25
 
 ### 🟡 SERVICES — Scaffold & Implement
 

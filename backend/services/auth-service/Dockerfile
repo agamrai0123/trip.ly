@@ -22,10 +22,13 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tzdata && \
     addgroup -S appgroup && adduser -S appuser -G appgroup
+LABEL service="auth-service" version="1.0.0" maintainer="WanderPlan"
 WORKDIR /app
 COPY --from=builder /app /app/auth-service
 COPY --chown=appuser:appgroup services/auth-service/config ./config
 
 USER appuser
-EXPOSE 8081
+EXPOSE 8081 9081
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://localhost:8081/healthz || exit 1
 ENTRYPOINT ["/app/auth-service"]

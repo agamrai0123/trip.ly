@@ -1,8 +1,8 @@
 # ctx:api-gateway | 2026-05-24 | HTTP:8080
 ## state
 todo: -
-planned: Dockerfile — multi-stage(golang:1.22-alpine→gcr.io/distroless/static-debian12)
-done: scaffold(cmd+internal/*)@2026-05-24 | env-var-fix(AUTH_SERVICE_GRPC_ADDR split from HTTP addr)@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go)@2026-05-25
+planned: -
+done: scaffold(cmd+internal/*)@2026-05-24 | env-var-fix(AUTH_SERVICE_GRPC_ADDR split from HTTP addr)@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go)@2026-05-25 | Dockerfile(multi-stage,EXPOSE 8080,HEALTHCHECK,LABEL)@2026-05-25 | routes.go:metrics middleware wired into r.Use()(was discarded with _)@2026-05-26
 errors: -
 _update when: endpoints/proxy rules/gRPC calls/middleware/config keys change_
 
