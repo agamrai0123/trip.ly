@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import CityDetail from "./pages/CityDetail.tsx";
 import Trips from "./pages/Trips.tsx";
 import TripDetail from "./pages/TripDetail.tsx";
+import Profile from "./pages/Profile.tsx";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/city/:id" element={<RequireAuth><CityDetail /></RequireAuth>} />
             <Route path="/trips" element={<RequireAuth><Trips /></RequireAuth>} />
             <Route path="/trips/:id" element={<RequireAuth><TripDetail /></RequireAuth>} />
+            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppProvider>

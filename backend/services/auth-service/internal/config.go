@@ -8,20 +8,20 @@ import (
 
 // Config is the top-level auth-service configuration.
 type Config struct {
-	Version    string       `mapstructure:"version"`
-	ServerPort string       `mapstructure:"server_port"`
-	GRPCPort   string       `mapstructure:"grpc_port"`
-	MetricPort int          `mapstructure:"metric_port"`
-	Logging    LoggingCfg   `mapstructure:"logging"`
-	Database   DatabaseCfg  `mapstructure:"database"`
-	Kafka      KafkaCfg     `mapstructure:"kafka"`
-	OAuth      OAuthCfg     `mapstructure:"oauth"`
-	CORS       CORSCfg      `mapstructure:"cors"`
-	RateLimit  RateLimitCfg `mapstructure:"rate_limiting"`
-	Cookie     CookieCfg    `mapstructure:"cookie"`
-	JWTPrivKey  string      `mapstructure:"jwt_private_key"`
-	JWTPubKey   string      `mapstructure:"jwt_public_key"`
-	FrontendURL string      `mapstructure:"frontend_url"`
+	Version     string       `mapstructure:"version"`
+	ServerPort  string       `mapstructure:"server_port"`
+	GRPCPort    string       `mapstructure:"grpc_port"`
+	MetricPort  int          `mapstructure:"metric_port"`
+	Logging     LoggingCfg   `mapstructure:"logging"`
+	Database    DatabaseCfg  `mapstructure:"database"`
+	Kafka       KafkaCfg     `mapstructure:"kafka"`
+	OAuth       OAuthCfg     `mapstructure:"oauth"`
+	CORS        CORSCfg      `mapstructure:"cors"`
+	RateLimit   RateLimitCfg `mapstructure:"rate_limiting"`
+	Cookie      CookieCfg    `mapstructure:"cookie"`
+	JWTPrivKey  string       `mapstructure:"jwt_private_key"`
+	JWTPubKey   string       `mapstructure:"jwt_public_key"`
+	FrontendURL string       `mapstructure:"frontend_url"`
 }
 
 type LoggingCfg struct {

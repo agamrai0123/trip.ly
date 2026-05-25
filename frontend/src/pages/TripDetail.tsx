@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import {
   fetchTrip, fetchTripDays, fetchDayItems, reorderItems, createDayItem, deleteItem,
-  type ApiTrip, type ApiDay, type ApiItem, type CreateItemBody,
+  fetchCollaborators, inviteCollaborator, removeCollaborator,
+  type ApiTrip, type ApiDay, type ApiItem, type CreateItemBody, type ApiCollaborator,
 } from "@/lib/api";
-import { ArrowLeft, Calendar, DollarSign, GripVertical, MapPin, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, DollarSign, GripVertical, MapPin, Plus, Trash2, Users, UserMinus, UserPlus } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -45,6 +47,7 @@ const TripDetail = () => {
   });
 
   const [addingDay, setAddingDay] = useState<ApiDay | null>(null);
+  const [showCollabs, setShowCollabs] = useState(false);
 
   if (loadingTrip || loadingDays) {
     return (
@@ -103,7 +106,10 @@ const TripDetail = () => {
               <Calendar className="h-5 w-5 text-muted-foreground" />{days.length}
             </div>
           </div>
-          <div className="ml-auto self-center">
+          <div className="ml-auto self-center flex gap-2">
+            <Button onClick={() => setShowCollabs(v => !v)} variant="ghost" size="sm">
+              <Users className="mr-1.5 h-4 w-4" /> Share
+            </Button>
             <Button onClick={() => setAddingDay(days[0] ?? null)} variant="secondary" size="sm" disabled={days.length === 0}>
               <Plus className="mr-1.5 h-4 w-4" /> Add item
             </Button>
@@ -112,6 +118,9 @@ const TripDetail = () => {
       </section>
 
       <section className="container pb-20 space-y-10">
+        {showCollabs && (
+          <CollaboratorsPanel tripId={trip.id} />
+        )}
         {days.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border/80 bg-card-grad p-16 text-center text-muted-foreground">
             No days planned yet.
@@ -353,6 +362,100 @@ function AddItemDialog({ tripId, day, days, onClose, qc }: {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CollaboratorsPanel({ tripId }: { tripId: string }) {
+  const qc = useQueryClient();
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("viewer");
+
+  const { data: collabs = [], isLoading } = useQuery({
+    queryKey: ["collabs", tripId],
+    queryFn: () => fetchCollaborators(tripId),
+  });
+
+  const invite = useMutation({
+    mutationFn: ({ e, r }: { e: string; r: string }) => inviteCollaborator(tripId, e, r),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["collabs", tripId] });
+      setEmail("");
+      toast.success("Invitation sent");
+    },
+    onError: () => toast.error("Could not invite collaborator"),
+  });
+
+  const remove = useMutation({
+    mutationFn: (userId: string) => removeCollaborator(tripId, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["collabs", tripId] });
+      toast.success("Collaborator removed");
+    },
+    onError: () => toast.error("Could not remove collaborator"),
+  });
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card-grad p-5">
+      <h3 className="font-display text-xl font-semibold">Collaborators</h3>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!email.trim()) return;
+          invite.mutate({ e: email.trim(), r: role });
+        }}
+        className="mt-4 flex gap-2"
+      >
+        <Input
+          type="email"
+          placeholder="Invite by email…"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          className="flex-1"
+        />
+        <select
+          value={role}
+          onChange={e => setRole(e.target.value)}
+          className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+        >
+          <option value="viewer">Viewer</option>
+          <option value="editor">Editor</option>
+        </select>
+        <Button type="submit" size="sm" disabled={invite.isPending} className="shrink-0">
+          <UserPlus className="mr-1.5 h-4 w-4" />Invite
+        </Button>
+      </form>
+
+      <div className="mt-4 space-y-2">
+        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {!isLoading && collabs.length === 0 && (
+          <p className="text-sm text-muted-foreground">No collaborators yet. Invite someone above.</p>
+        )}
+        {collabs.map((c: ApiCollaborator) => (
+          <div key={c.user_id} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-3 py-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={c.avatar_url} alt={c.name} />
+              <AvatarFallback>{c.name?.[0]?.toUpperCase() ?? "?"}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-sm font-medium">{c.name || c.email}</p>
+              <p className="truncate text-xs text-muted-foreground">{c.email}</p>
+            </div>
+            <span className="text-xs text-muted-foreground capitalize">{c.role}</span>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => remove.mutate(c.user_id)}
+              disabled={remove.isPending}
+              aria-label="Remove collaborator"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+            >
+              <UserMinus className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

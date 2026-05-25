@@ -1,8 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "@/store/AppContext";
-import { useQuery } from "@tanstack/react-query";
-import { fetchTrips } from "@/lib/api";
-import { Compass, MapPin, Briefcase, Users2, LogOut, User } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchTrips, fetchNotifications, markAllNotificationsRead, markNotificationRead, type ApiNotification } from "@/lib/api";
+import { Bell, Compass, MapPin, Briefcase, Users2, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -12,17 +12,38 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatDistanceToNow } from "date-fns";
 
 export const Header = () => {
   const { user, logout } = useApp();
   const loc = useLocation();
   const nav = useNavigate();
+  const qc = useQueryClient();
   const onAuth = loc.pathname === "/";
 
   const { data: trips = [] } = useQuery({
     queryKey: ["trips"],
     queryFn: fetchTrips,
     enabled: Boolean(user),
+  });
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: fetchNotifications,
+    enabled: Boolean(user),
+    refetchInterval: 30_000,
+  });
+
+  const unread = notifications.filter((n: ApiNotification) => !n.read);
+
+  const markRead = useMutation({
+    mutationFn: (id: string) => markNotificationRead(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  const markAll = useMutation({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
   if (onAuth || !user) return null;
@@ -57,6 +78,47 @@ export const Header = () => {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Notifications bell */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="relative rounded-full p-2 text-muted-foreground transition hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Notifications">
+                <Bell className="h-5 w-5" />
+                {unread.length > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
+                    {unread.length > 9 ? "9+" : unread.length}
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-sm font-semibold">Notifications</span>
+                {unread.length > 0 && (
+                  <button onClick={() => markAll.mutate()} className="text-xs text-primary hover:underline">
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <DropdownMenuSeparator />
+              {notifications.length === 0 ? (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">No notifications yet.</div>
+              ) : (
+                notifications.slice(0, 20).map((n: ApiNotification) => (
+                  <DropdownMenuItem
+                    key={n.id}
+                    onClick={() => { if (!n.read) markRead.mutate(n.id); }}
+                    className={`flex flex-col items-start gap-0.5 px-3 py-2 ${!n.read ? "bg-primary/5" : ""}`}
+                  >
+                    <span className="text-xs font-medium capitalize">{n.type.replace(/_/g, " ")}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                    </span>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-full pr-1 transition hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Account menu">

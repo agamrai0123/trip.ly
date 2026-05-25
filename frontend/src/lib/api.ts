@@ -171,6 +171,33 @@ export async function removeCollaborator(tripId: string, userId: string): Promis
   await api.delete(`/api/v1/trips/${tripId}/collaborators/${userId}`);
 }
 
+// ── User ─────────────────────────────────────────────────────────────────────
+
+export async function fetchMe(): Promise<ApiUser> {
+  const r = await api.get<{ data: ApiUser }>("/api/v1/users/me");
+  return r.data.data;
+}
+
+export async function updateMe(body: Partial<{ name: string; avatar_url: string }>): Promise<ApiUser> {
+  const r = await api.patch<{ data: ApiUser }>("/api/v1/users/me", body);
+  return r.data.data;
+}
+
+// ── Notifications ────────────────────────────────────────────────────────────
+
+export async function fetchNotifications(): Promise<ApiNotification[]> {
+  const r = await api.get<{ data: ApiNotification[] }>("/api/v1/notifications");
+  return r.data.data ?? [];
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await api.patch(`/api/v1/notifications/${id}/read`);
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api.patch("/api/v1/notifications/read-all");
+}
+
 // ── API Types ────────────────────────────────────────────────────────────────
 
 export interface ApiUser {
@@ -264,4 +291,13 @@ export interface CreateItemBody {
   cost?: number;
   currency?: string;
   order_index?: number;
+}
+
+export interface ApiNotification {
+  id: string;
+  user_id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  read: boolean;
+  created_at: string;
 }

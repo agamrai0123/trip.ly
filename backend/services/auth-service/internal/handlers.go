@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/agamrai0123/wanderplan/pkg/errors"
 	"github.com/agamrai0123/wanderplan/pkg/middleware"
 	"github.com/agamrai0123/wanderplan/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 // Handlers wires HTTP requests to AuthService methods.
