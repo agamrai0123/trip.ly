@@ -1,8 +1,8 @@
 # ctx:auth-service | 2026-05-24 | HTTP:8081 gRPC:9081
 ## state
-todo: Dockerfile — multi-stage(golang:1.22-alpine→gcr.io/distroless/static-debian12), CGO_ENABLED=0 GOOS=linux -ldflags="-w -s", non-root, EXPOSE 8081 9081, HEALTHCHECK /healthz, LABEL service=auth-service
-planned: -
-done: scaffold(cmd+internal/*)@2026-05-24 | env-var-fix(DB_*+OAuth+KAFKA_BROKERS flat-env overrides)@2026-05-24
+todo: -
+planned: Dockerfile — multi-stage(golang:1.22-alpine→gcr.io/distroless/static-debian12)
+done: scaffold(cmd+internal/*)@2026-05-24 | env-var-fix(DB_*+OAuth+KAFKA_BROKERS flat-env overrides)@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(service_test.go+handlers_test.go+repository_test.go)@2026-05-25
 errors: -
 _update when: OAuth providers/JWT config/endpoints/users+refresh_tokens schema/Kafka events/gRPC RPCs change_
 

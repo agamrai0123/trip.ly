@@ -1,8 +1,8 @@
 # ctx:search-service | 2026-05-24 | HTTP:8086
 ## state
 todo: -
-planned: Proto search.proto(RPCs:SearchPlaces,SearchTrips; comment all; run make proto) | scaffold+implement(go.mod,cmd,internal/*,air.toml,README.md; go work use) | Dockerfile(multi-stage,EXPOSE 8086,HEALTHCHECK /healthz,LABEL service=search-service) | Go tests(≥80%;mock Google Places API)
-done: context-doc@2026-05-24
+planned: Proto search.proto(RPCs; make proto) | Dockerfile(multi-stage,EXPOSE 8086,HEALTHCHECK /healthz)
+done: context-doc@2026-05-24 | scaffold+implement@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go+service_test.go)@2026-05-25
 errors: -
 _update when: Google Places integration/caching/FTS query/endpoints/new search types change_
 

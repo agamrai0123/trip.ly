@@ -1,9 +1,9 @@
 # ctx:frontend | 2026-05-24 | Vite SPA
 ## state
-todo: -
-planned: (1)axios API client+JWT refresh interceptor | (2)Auth flow(Google+GitHub OAuth,callback,access-token in-memory,remove mock auth) | (3)Remove mock data+wire Dashboard(GET /trips+GET /users/me/stats→recharts) | (4)Wire Trips+TripDetail(CRUD,dnd-kit→PATCH /trips/:id/items/reorder) | (5)Wire CityDetail(GET /search/places)+PostDetail(GET /trips/:id) | (6)Collaborators panel on TripDetail(list+invite+role-change+remove) | (7)Notifications bell(poll 30s+WebSocket+mark-read) | (8)Settings page /settings(GET+PATCH /users/me) | (9)Place autocomplete(debounced GET /search/places in item form) | (10)Trip search bar in Dashboard(debounced GET /search/trips) | (11)Dark/light mode audit(next-themes+dark: classes+theme toggle in Header)
-done: Lovable scaffold+routing+shadcn setup@2026-05-24 | context-doc@2026-05-24
-errors: mock data still in use; AppContext has hardcoded trips; Header notifications unimplemented; no Settings page; window.location in api.ts refresh-failure handler (replace with navigate)
+todo: (7)Notifications WS(/ws/notifications) | (8)Settings page dark-mode audit | (9)Place autocomplete(debounced GET /search/places in item form) | (10)Trip search bar in Dashboard | (11)Dark/light mode audit(next-themes+dark: classes+theme toggle)
+planned: -
+done: Lovable scaffold+routing+shadcn setup@2026-05-24 | context-doc@2026-05-24 | Phase1-api-wiring(api.ts,AppContext,Login,AuthCallback,Dashboard,Trips,TripDetail,CityDetail,Header,mock.ts-cleared)@session2 | Phase2-create-trip-dialog+collaborators-panel+profile-page+notif-bell@session3
+errors: -
 _update when: new pages/routes/API hooks/state management/dependencies added_
 
 ## stack

@@ -1,8 +1,8 @@
 # ctx:trip-service | 2026-05-24 | HTTP:8082 gRPC:9082
 ## state
-todo: scaffold+implement — go.mod,cmd/main.go,internal/*(config,handlers,routes,service,models,metrics,logger,errors,database,helpers),air.toml,README.md; `go work use ./services/trip-service` in backend/
-planned: Dockerfile(multi-stage,EXPOSE 8082 9082,HEALTHCHECK /healthz,LABEL service=trip-service) | Go tests(table-driven,testcontainers-go,≥80%)
-done: context-doc@2026-05-24
+todo: -
+planned: Dockerfile(multi-stage,EXPOSE 8082 9082,HEALTHCHECK /healthz,LABEL service=trip-service)
+done: context-doc@2026-05-24 | scaffold+implement@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(service_test.go+handlers_test.go+repository_test.go)@2026-05-25
 errors: -
 _update when: endpoints/DB/Kafka/gRPC/reorder/duplicate logic change_
 

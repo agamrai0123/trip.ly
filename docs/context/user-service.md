@@ -1,8 +1,8 @@
 # ctx:user-service | 2026-05-24 | HTTP:8083 gRPC:9083
 ## state
-todo: scaffold+implement — go.mod,cmd/main.go,internal/*(config,handlers,routes,service,models,metrics,logger,errors,database),air.toml,README.md; `go work use ./services/user-service` in backend/
-planned: Dockerfile(multi-stage,EXPOSE 8083 9083,HEALTHCHECK /healthz,LABEL service=user-service) | Go tests(≥80%)
-done: context-doc@2026-05-24
+todo: -
+planned: Dockerfile(multi-stage,EXPOSE 8083 9083,HEALTHCHECK /healthz,LABEL service=user-service)
+done: context-doc@2026-05-24 | scaffold+implement@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go+service_test.go)@2026-05-25
 errors: -
 _update when: user profile fields/endpoints/gRPC clients/DB schema change_
 

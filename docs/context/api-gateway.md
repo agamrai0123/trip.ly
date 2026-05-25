@@ -1,8 +1,8 @@
 # ctx:api-gateway | 2026-05-24 | HTTP:8080
 ## state
-todo: Dockerfile — multi-stage(golang:1.22-alpine→gcr.io/distroless/static-debian12), CGO_ENABLED=0 GOOS=linux -ldflags="-w -s", non-root, EXPOSE 8080, HEALTHCHECK /healthz, LABEL service=api-gateway
-planned: -
-done: scaffold(cmd+internal/*)@2026-05-24 | env-var-fix(AUTH_SERVICE_GRPC_ADDR split from HTTP addr)@2026-05-24
+todo: -
+planned: Dockerfile — multi-stage(golang:1.22-alpine→gcr.io/distroless/static-debian12)
+done: scaffold(cmd+internal/*)@2026-05-24 | env-var-fix(AUTH_SERVICE_GRPC_ADDR split from HTTP addr)@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go)@2026-05-25
 errors: -
 _update when: endpoints/proxy rules/gRPC calls/middleware/config keys change_
 

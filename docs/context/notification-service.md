@@ -1,8 +1,8 @@
 # ctx:notification-service | 2026-05-24 | HTTP:8085 WS:8085
 ## state
 todo: -
-planned: Proto notification.proto(RPCs:ListNotifications,MarkRead,MarkAllRead; comment all; run make proto) | scaffold+implement(go.mod,cmd,internal/*+consumer.go+websocket.go,air.toml,README.md; go work use) | Dockerfile(multi-stage,EXPOSE 8085,HEALTHCHECK /healthz,LABEL service=notification-service) | Go tests(≥80%;mock Kafka consumer)
-done: context-doc@2026-05-24
+planned: Proto notification.proto(RPCs; make proto) | Dockerfile(multi-stage,EXPOSE 8085,HEALTHCHECK /healthz)
+done: context-doc@2026-05-24 | scaffold+implement@2026-05-24 | .env.example@2026-05-25 | README.md@2026-05-25 | tests(handlers_test.go+service_test.go)@2026-05-25
 errors: -
 _update when: Kafka topics/event types/WebSocket logic/endpoints/notifications schema/consumer group change_
 
