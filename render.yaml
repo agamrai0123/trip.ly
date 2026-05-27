@@ -20,6 +20,7 @@ services:
   - type: web
     name: wanderplan-api-gateway
     runtime: docker
+    branch: main
     dockerfilePath: ./backend/services/api-gateway/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -75,6 +76,7 @@ services:
   - type: web
     name: wanderplan-auth-service
     runtime: docker
+    branch: main
     dockerfilePath: ./backend/services/auth-service/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -123,6 +125,7 @@ services:
   - type: web
     name: wanderplan-trip-service
     runtime: docker
+    branch: main
     dockerfilePath: ./backend/services/trip-service/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -161,6 +164,7 @@ services:
   - type: web
     name: wanderplan-user-service
     runtime: docker
+    branch: main
     dockerfilePath: ./backend/services/user-service/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -199,6 +203,7 @@ services:
   - type: web
     name: wanderplan-collaboration-service
     runtime: docker
+    branch: main
     dockerfilePath: ./backend/services/collaboration-service/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -237,6 +242,7 @@ services:
   - type: web
     name: wanderplan-notification-service
     runtime: docker
+    branch: main
     dockerfilePath: ./backend/services/notification-service/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -277,6 +283,7 @@ services:
   - type: web
     name: wanderplan-search-service
     runtime: docker
+    branch: main
     dockerfilePath: ./backend/services/search-service/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -315,6 +322,7 @@ services:
   - type: web
     name: wanderplan-frontend
     runtime: static
+    branch: main
     buildCommand: cd frontend && npm install --include=dev && npm run build
     staticPublishPath: ./frontend/dist
     pullRequestPreviewsEnabled: true
