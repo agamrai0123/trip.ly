@@ -119,7 +119,7 @@
 
 - [x] **Root README.md** — added Mermaid architecture diagram + API reference index (all endpoints) + env var reference table. @2025-07-26
 - [x] **Service READMEs** — all 7 services have README.md. @2026-05-25
-- [ ] **godoc comments** — all exported Go functions and types must have godoc comments.
+- [x] **godoc comments** — all exported Go functions and types have godoc comments; golint reports zero missing-comment issues. @2026-05-27
 
 ---
 
