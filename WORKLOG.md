@@ -70,7 +70,7 @@
 - [x] **[BLOCKER] Dockerfile — api-gateway** — `backend/services/api-gateway/Dockerfile`. Multi-stage alpine→alpine, LABEL, HEALTHCHECK /healthz, EXPOSE 8080. @2026-05-25
 - [x] **[BLOCKER] Dockerfile — auth-service** — `backend/services/auth-service/Dockerfile`. Same pattern. EXPOSE 8081 9081, HEALTHCHECK, LABEL. @2026-05-25
 - [x] **[BLOCKER] Dockerfiles — trip/user/collaboration/notification/search services** — All 5 Dockerfiles complete with LABEL, HEALTHCHECK, correct EXPOSE (trip:8082/9082, user:8083/9083, collab:8084, notif:8085, search:8086). @2026-05-25
-- [ ] **[BLOCKER] Copy render.yaml into develop branch** — File exists only in `main`; cherry-pick commit or recreate at repo root in `develop`. Required for Render blueprint to apply.
+- [x] **[BLOCKER] Copy render.yaml into develop branch** — Pushed to `origin/develop` @2026-05-27
 
 ### 🟠 FOUNDATION — Migrations & Proto
 

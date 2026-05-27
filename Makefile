@@ -385,3 +385,21 @@ cd:
 # ============================================================================
 
 .DEFAULT_GOAL := help
+
+# ============================================================================
+# SHORTHAND ALIASES (required by project conventions)
+# ============================================================================
+
+# run -- start all backend services (docker-up first)
+run:
+	@for svc in api-gateway auth-service trip-service user-service collaboration-service notification-service search-service; do \
+		echo "  Starting $$svc..."; \
+		(cd backend/services/$$svc && go run ./cmd/... &); \
+	done
+	@echo "All services started."
+
+# migrate -- run all pending migrations up
+migrate: db-migrate
+
+# migrate-down -- roll back last migration
+migrate-down: db-rollback
