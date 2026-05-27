@@ -9,7 +9,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // forks pool: each file gets its own child process (no shared jsdom state)
+    // avoids the ENOSPC issue caused by the worker_threads pool writing to C: temp
+    pool: "forks",
   },
+  cacheDir: "./node_modules/.vitest-cache",
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
   },

@@ -12,6 +12,7 @@ type Config struct {
 	RateLimit  RateLimitCfg `mapstructure:"rate_limit"`
 }
 
+// LoggingCfg holds zerolog and lumberjack log rotation settings.
 type LoggingCfg struct {
 	Level      int    `mapstructure:"level"`
 	Path       string `mapstructure:"path"`
@@ -20,6 +21,7 @@ type LoggingCfg struct {
 	MaxAgeDays int    `mapstructure:"max_age_days"`
 }
 
+// ServicesCfg holds HTTP/gRPC addresses for all downstream services.
 type ServicesCfg struct {
 	AuthAddr          string `mapstructure:"auth_addr"`
 	AuthGRPCAddr      string `mapstructure:"auth_grpc_addr"`
@@ -30,10 +32,12 @@ type ServicesCfg struct {
 	SearchAddr        string `mapstructure:"search_addr"`
 }
 
+// CORSCfg holds allowed origins for Cross-Origin Resource Sharing.
 type CORSCfg struct {
 	AllowedOrigins []string `mapstructure:"allowed_origins"`
 }
 
+// RateLimitCfg controls the per-IP token-bucket rate limiter.
 type RateLimitCfg struct {
 	RPS   float64 `mapstructure:"rps"`
 	Burst int     `mapstructure:"burst"`
