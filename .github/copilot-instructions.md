@@ -1,7 +1,32 @@
 # WanderPlan — GitHub Copilot Instructions
 
+## Model Routing (read first)
+
+Before starting any task, route it to the right model:
+
+- **Default entry point**: type `/delegate` + your task. Qwen3.6 35B (local Ollama) runs first — zero cloud tokens. It either completes the task locally or emits a one-line escalation to a cloud prompt.
+- **Simple tasks** (explain, refactor one function, boilerplate): `/explain-offline`, `/refactor-offline`, `/offline-task` → Qwen3.6 35B
+- **Complex tasks** (multi-file feature, gRPC/proto, security audit): `/implement-feature`, `/online-task`, `/security-review-online` → Claude Sonnet 4.5
+
+> If you receive a task without a `/prompt`, default to cloud (current model) but mention that `/delegate` would be more token-efficient for simple sub-tasks.
+
+Full routing table: `.github/instructions/model-routing.instructions.md`
+
+---
+
 ## Project Overview
 WanderPlan is an AI-powered travel itinerary planning platform. It consists of a React 18 + TypeScript frontend and seven Go microservices communicating over HTTP, gRPC, and Kafka.
+
+### Context Documents (read before working on an entity)
+Before modifying any service, shared package, or frontend code, read the relevant context document:
+- Architecture + relationship graph: `docs/ARCHITECTURE.md`
+- Per-entity context + work state: `docs/context/<entity>.md` (api-gateway, auth-service, trip-service, user-service, collaboration-service, notification-service, search-service, frontend, shared-packages)
+
+Each context doc is machine-readable and compact. It contains:
+- `## state` block with `todo:`, `planned:`, `done:`, `errors:` — the work queue for that entity
+- `## files`, `## routes`, `## env`, `## pkg`, `## db`, etc. — all facts about the entity
+
+**After every code change**, update the `done:` (and clear `todo:`) in the affected context doc(s).
 
 ---
 
@@ -95,3 +120,53 @@ WanderPlan is an AI-powered travel itinerary planning platform. It consists of a
 - `docker-compose.yml` must start Prometheus (scraping all services) and Grafana with a pre-provisioned datasource and dashboards in `/deployments/grafana/dashboards/`.
 - Each service Grafana dashboard must show: RPS, P50/P95/P99 latency, error rate, active DB connections, Kafka consumer lag (notification-service), and goroutine count.
 - All HTTP routes, DB queries, Kafka produce/consume operations, and gRPC calls must be individually instrumented.
+
+---
+
+## Session Coordination Rules (concurrent sessions)
+
+- **At the very start of every session**, before touching any source file, read `SESSIONS.md` and check the **Active Claims** table.
+- **Claim your task** by adding a row to `SESSIONS.md` and committing + pushing it immediately. This is the distributed lock — the first push wins.
+- **Never work on an entity that is already claimed** by another session. Pick a different unclaimed task from `WORKLOG.md`, or wait.
+- **Release your claim** (remove your row from `SESSIONS.md`) as part of the final commit when the task is done.
+- Full protocol (claim format, stale claim policy, overlap detection) is in `.github/instructions/session-coordination.instructions.md`.
+
+---
+
+## Session Handover & Task Tracking Rules
+
+- **At the start of every session**, read `WORKLOG.md` first. It is a thin index showing which context doc has the next pending `todo:`.
+- **Load only the context doc(s)** you need for the current task (`docs/context/<entity>.md`). Do not load all context docs — load only relevant ones to save tokens.
+- **Per-entity work** (service implementation, frontend wiring, etc.) is tracked inside each `docs/context/<entity>.md` under `## state` with `todo:`, `planned:`, `done:`, `errors:`.
+- **Cross-cutting work** (migrations, docker-compose, READMEs, tests) is tracked in `WORKLOG.md` under Cross-cutting TODO/PLANNED/DONE.
+- **After completing each step**, update `todo:` → `done:` in the context doc. Update the status row in `WORKLOG.md`'s index table.
+- **A request is only done** when all derived steps are marked done.
+- Commit `WORKLOG.md` and the affected context doc(s) with every code change.
+
+---
+
+## Deployment Verification Rules
+
+- **Code is only "done" when it is live and verified on Render.com.** Pushing to `main` is a prerequisite, not the finish line.
+- After every `git push origin main`, wait for all affected Render services to finish building and deploying before declaring the task complete. A deploy that is still "In Progress" or "Failed" means the task is NOT done.
+- **Before ending any session that touched backend code**, verify every affected service's `/healthz` endpoint returns HTTP 200:
+  ```
+  curl -sf https://<service-name>.onrender.com/healthz
+  ```
+  If any service returns non-200 or times out, diagnose the failure (check Render logs via the dashboard or API), fix it, and redeploy before closing the session.
+- **Render deploy failure checklist** — if a service fails to deploy, check in this order:
+  1. Docker build errors (missing files, wrong build context, import errors).
+  2. Config / env var issues (missing required env vars, wrong key names).
+  3. Database connection errors (wrong host/port, missing credentials, migrations not run).
+  4. gRPC dial errors (wrong address or port for inter-service calls).
+  5. Panic / runtime errors visible in Render's log stream.
+- **Render service URLs** (use these for health checks):
+  - api-gateway: `https://wanderplan-api-gateway.onrender.com/healthz`
+  - auth-service: `https://wanderplan-auth-service.onrender.com/healthz`
+  - trip-service: `https://wanderplan-trip-service.onrender.com/healthz`
+  - user-service: `https://wanderplan-user-service.onrender.com/healthz`
+  - collaboration-service: `https://wanderplan-collaboration-service.onrender.com/healthz`
+  - notification-service: `https://wanderplan-notification-service.onrender.com/healthz`
+  - search-service: `https://wanderplan-search-service.onrender.com/healthz`
+- Use the Render API (`https://api.render.com/v1/`) with the project API key to check deploy status programmatically when needed. The key is stored in Render's dashboard under Account → API Keys.
+- Do not call `task_complete` until all affected `/healthz` endpoints confirm HTTP 200.

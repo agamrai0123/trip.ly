@@ -18,6 +18,7 @@ var ErrNotFound = errors.New("not found")
 // UserRepo handles user persistence.
 type UserRepo struct{ pool *pgxpool.Pool }
 
+// NewUserRepo creates a UserRepo backed by the given connection pool.
 func NewUserRepo(pool *pgxpool.Pool) *UserRepo { return &UserRepo{pool: pool} }
 
 // Upsert inserts or updates a user row and returns the current record.
@@ -60,6 +61,7 @@ func (r *UserRepo) GetByID(ctx context.Context, id string) (*User, error) {
 // RefreshTokenRepo handles refresh token persistence.
 type RefreshTokenRepo struct{ pool *pgxpool.Pool }
 
+// NewRefreshTokenRepo creates a RefreshTokenRepo backed by the given connection pool.
 func NewRefreshTokenRepo(pool *pgxpool.Pool) *RefreshTokenRepo {
 	return &RefreshTokenRepo{pool: pool}
 }

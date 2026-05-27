@@ -1,6 +1,28 @@
 {
   // ─── Copilot: model & chat ────────────────────────────────────────────────
+  //
+  //  Model routing strategy (see .github/instructions/model-routing.instructions.md):
+  //
+  //    Offline / fast / private  →  use /offline-task or /explain-offline prompt
+  //                                 → routes to local Ollama (codellama by default)
+  //
+  //    Complex / agentic / multi-file  →  use /online-task or /implement-feature prompt
+  //                                       → routes to Claude Sonnet 4.5 (cloud)
+  //
+  //  Inline completions: "auto" lets Copilot choose the best completion model.
+  //  Override per-session via the model picker (bottom of the Chat panel).
+  //
   "github.copilot.selectedModel": "auto",
+
+  // Ollama local model endpoint — VS Code discovers models from this URL.
+  // Keep this even if Ollama is not running; it is silently ignored when offline.
+  // Active model: qwen3.6:35b  (change to any model returned by `ollama list`)
+  "chat.ollama.endpoint": "http://localhost:11434",
+
+  // Surface the model picker button in the Chat panel so you can switch
+  // between cloud and Ollama models without retyping the prompt.
+  "github.copilot.chat.experimental.modelPicker.enabled": true,
+
   "github.copilot.chat.followUps": "always",
   "github.copilot.chat.generateTests.codeLens": true,
 
@@ -85,17 +107,18 @@
       }
     ],
 
-    // ── 6. Run the full test suite and surface failures when the agent stops ──
-    //    Gives the agent immediate feedback so it can self-correct before
-    //    presenting results to you.
+    // ── 6. Fast compile check when the agent stops ───────────────────────────
+    //    Runs `go build` across all backend services (fast, ~5-10s).
+    //    Full verification (lint + tests + Render health) is handled by the
+    //    LOCAL model — run `/check` after each cloud iteration for that.
     "Stop": [
       {
         "command": {
-          "osx":   "make test 2>&1 | tail -60",
-          "linux": "make test 2>&1 | tail -60",
-          "windows": "make test 2>&1 | Select-Object -Last 60"
+          "osx":   "make build-backend 2>&1 | tail -30 && echo '' && echo '💡 Run /check for full lint+test+Render verification (Qwen3 local)'",
+          "linux": "make build-backend 2>&1 | tail -30 && echo '' && echo '💡 Run /check for full lint+test+Render verification (Qwen3 local)'",
+          "windows": "make build-backend 2>&1 | Select-Object -Last 30; Write-Host ''; Write-Host '💡 Run /check for full lint+test+Render verification (Qwen3 local)'"
         },
-        "description": "Run full test suite (Go + frontend) at the end of each agent turn"
+        "description": "Fast Go build check on agent stop — run /check (local model) for full verification"
       }
     ]
   },

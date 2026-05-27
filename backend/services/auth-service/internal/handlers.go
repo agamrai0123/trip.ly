@@ -1,13 +1,17 @@
 package internal
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/agamrai0123/wanderplan/pkg/errors"
 	"github.com/agamrai0123/wanderplan/pkg/middleware"
 	"github.com/agamrai0123/wanderplan/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 // Handlers wires HTTP requests to AuthService methods.
@@ -63,7 +67,18 @@ func (h *Handlers) Callback(c *gin.Context) {
 		return
 	}
 	h.setRefreshCookie(c, rawRefresh)
-	response.OK(c, loginResp)
+	userJSON, _ := json.Marshal(loginResp.User)
+	userB64 := base64.URLEncoding.EncodeToString(userJSON)
+	frontendURL := h.cfg.FrontendURL
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+	redirectURL := fmt.Sprintf("%s/auth/callback?access_token=%s&user=%s",
+		frontendURL,
+		url.QueryEscape(loginResp.AccessToken),
+		url.QueryEscape(userB64),
+	)
+	c.Redirect(http.StatusFound, redirectURL)
 }
 
 // Refresh issues a new access token using the refresh_token cookie.
@@ -112,10 +127,10 @@ func (h *Handlers) Me(c *gin.Context) {
 
 func (h *Handlers) setRefreshCookie(c *gin.Context, raw string) {
 	const maxAge = int(30 * 24 * time.Hour / time.Second)
-	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("refresh_token", raw, maxAge, "/auth", h.cfg.Cookie.Domain, h.cfg.Cookie.Secure, true)
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie("refresh_token", raw, maxAge, "/", h.cfg.Cookie.Domain, true, true)
 }
 
 func (h *Handlers) clearRefreshCookie(c *gin.Context) {
-	c.SetCookie("refresh_token", "", -1, "/auth", h.cfg.Cookie.Domain, h.cfg.Cookie.Secure, true)
+	c.SetCookie("refresh_token", "", -1, "/", h.cfg.Cookie.Domain, true, true)
 }

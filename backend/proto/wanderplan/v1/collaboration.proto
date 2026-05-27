@@ -1,0 +1,89 @@
+// collaboration.proto defines the gRPC contract for the WanderPlan collaboration-service.
+syntax = "proto3";
+
+package wanderplan.v1;
+
+option go_package = "wanderplan/proto/gen/wanderplan/v1;wanderplanv1";
+
+// CollaborationService manages trip collaborators and roles.
+service CollaborationService {
+  // ListCollaborators returns all collaborators for a given trip.
+  rpc ListCollaborators(ListCollaboratorsRequest) returns (ListCollaboratorsResponse);
+  // InviteCollaborator grants a user access to a trip with a specified role.
+  rpc InviteCollaborator(InviteCollaboratorRequest) returns (InviteCollaboratorResponse);
+  // UpdateCollaborator changes an existing collaborator's role on a trip.
+  rpc UpdateCollaborator(UpdateCollaboratorRequest) returns (UpdateCollaboratorResponse);
+  // RemoveCollaborator revokes a user's access to a trip.
+  rpc RemoveCollaborator(RemoveCollaboratorRequest) returns (RemoveCollaboratorResponse);
+}
+
+// ListCollaboratorsRequest identifies the trip whose collaborators to fetch.
+message ListCollaboratorsRequest {
+  // trip_id is the UUID of the trip.
+  string trip_id = 1;
+}
+
+// Collaborator carries the full collaborator record.
+message Collaborator {
+  // id is the UUID of the collaborator record.
+  string id = 1;
+  // trip_id is the UUID of the associated trip.
+  string trip_id = 2;
+  // user_id is the UUID of the collaborating user.
+  string user_id = 3;
+  // role is the permission level: viewer, editor, or admin.
+  string role = 4;
+  // invited_at is the RFC 3339 timestamp when the invitation was created.
+  string invited_at = 5;
+  // accepted_at is the RFC 3339 timestamp when the invitation was accepted (empty if pending).
+  string accepted_at = 6;
+}
+
+// ListCollaboratorsResponse carries the full list of trip collaborators.
+message ListCollaboratorsResponse {
+  // collaborators is the ordered list of collaborators for the trip.
+  repeated Collaborator collaborators = 1;
+}
+
+// InviteCollaboratorRequest carries the data needed to invite a user to a trip.
+message InviteCollaboratorRequest {
+  // trip_id is the UUID of the trip to invite the user to.
+  string trip_id = 1;
+  // user_id is the UUID of the user to invite.
+  string user_id = 2;
+  // role is the permission level to assign: viewer, editor, or admin.
+  string role = 3;
+}
+
+// UpdateCollaboratorRequest carries the updated role for an existing collaborator.
+message UpdateCollaboratorRequest {
+  // trip_id is the UUID of the trip.
+  string trip_id = 1;
+  // user_id is the UUID of the collaborator to update.
+  string user_id = 2;
+  // role is the new permission level to assign.
+  string role = 3;
+}
+
+// InviteCollaboratorResponse wraps the newly created collaborator record.
+message InviteCollaboratorResponse {
+  // collaborator is the full collaborator record.
+  Collaborator collaborator = 1;
+}
+
+// UpdateCollaboratorResponse wraps the updated collaborator record.
+message UpdateCollaboratorResponse {
+  // collaborator is the full collaborator record after the update.
+  Collaborator collaborator = 1;
+}
+
+// RemoveCollaboratorRequest identifies the collaborator to remove.
+message RemoveCollaboratorRequest {
+  // trip_id is the UUID of the trip.
+  string trip_id = 1;
+  // user_id is the UUID of the user whose access to revoke.
+  string user_id = 2;
+}
+
+// RemoveCollaboratorResponse is an empty acknowledgement of successful removal.
+message RemoveCollaboratorResponse {}

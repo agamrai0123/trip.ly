@@ -1,0 +1,76 @@
+// search.proto defines the gRPC contract for the WanderPlan search-service.
+syntax = "proto3";
+
+package wanderplan.v1;
+
+option go_package = "wanderplan/proto/gen/wanderplan/v1;wanderplanv1";
+
+// SearchService provides place and trip search capabilities.
+service SearchService {
+  // SearchPlaces queries the Google Places API for locations matching a text query.
+  rpc SearchPlaces(SearchPlacesRequest) returns (SearchPlacesResponse);
+  // SearchTrips performs full-text search over the trips stored in the database.
+  rpc SearchTrips(SearchTripsRequest) returns (SearchTripsResponse);
+}
+
+// SearchPlacesRequest carries the query and optional geographic bias.
+message SearchPlacesRequest {
+  // query is the user-entered search text (e.g. "coffee shops in Tokyo").
+  string query = 1;
+  // lat is the latitude of the user's geographic bias point (0 = no bias).
+  double lat = 2;
+  // lng is the longitude of the user's geographic bias point (0 = no bias).
+  double lng = 3;
+}
+
+// PlaceResult is a single place returned from Google Places.
+message PlaceResult {
+  // place_id is the stable Google Place ID.
+  string place_id = 1;
+  // name is the human-readable name of the place.
+  string name = 2;
+  // formatted_address is the full display address of the place.
+  string formatted_address = 3;
+  // types is the list of Google Place type identifiers for the result.
+  repeated string types = 4;
+  // lat is the latitude of the place.
+  double lat = 5;
+  // lng is the longitude of the place.
+  double lng = 6;
+  // rating is the Google Places average rating (0 if unavailable).
+  double rating = 7;
+  // photo_reference is the Google Places photo reference token (empty if unavailable).
+  string photo_reference = 8;
+}
+
+// SearchPlacesResponse carries the list of matching places.
+message SearchPlacesResponse {
+  // places is the ordered list of place results.
+  repeated PlaceResult places = 1;
+}
+
+// SearchTripsRequest carries the full-text search query.
+message SearchTripsRequest {
+  // query is the search text used for full-text matching against trip title and destination.
+  string query = 1;
+}
+
+// TripSearchResult is a lightweight trip summary returned by search.
+message TripSearchResult {
+  // id is the UUID of the trip.
+  string id = 1;
+  // title is the trip's display name.
+  string title = 2;
+  // destination is the primary destination of the trip.
+  string destination = 3;
+  // status is the trip's lifecycle state (draft, published, archived).
+  string status = 4;
+  // owner_id is the UUID of the trip's owner.
+  string owner_id = 5;
+}
+
+// SearchTripsResponse carries the list of matching trips.
+message SearchTripsResponse {
+  // trips is the ordered list of trip search results.
+  repeated TripSearchResult trips = 1;
+}

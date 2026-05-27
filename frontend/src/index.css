@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Wandr — Ocean Deep design system. All colors HSL. */
+
+@layer base {
+  :root {
+    /* Ocean Deep palette */
+    --background: 210 45% 6%;
+    --foreground: 190 35% 92%;
+
+    --card: 210 42% 9%;
+    --card-foreground: 190 35% 94%;
+
+    --popover: 210 42% 9%;
+    --popover-foreground: 190 35% 94%;
+
+    --primary: 184 56% 51%;          /* teal accent #2d8a9e-ish lifted */
+    --primary-foreground: 210 60% 8%;
+
+    --secondary: 210 40% 14%;
+    --secondary-foreground: 190 30% 90%;
+
+    --muted: 210 35% 14%;
+    --muted-foreground: 200 18% 62%;
+
+    --accent: 175 45% 56%;           /* aqua highlight */
+    --accent-foreground: 210 60% 8%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 38% 18%;
+    --input: 210 38% 16%;
+    --ring: 184 56% 51%;
+
+    --radius: 1rem;
+
+    /* Brand tokens */
+    --ocean-deep: 213 56% 13%;
+    --ocean-mid: 202 59% 27%;
+    --ocean-teal: 188 56% 40%;
+    --ocean-aqua: 175 45% 56%;
+    --ocean-foam: 175 60% 88%;
+    --sand: 38 60% 90%;
+
+    --gradient-hero: linear-gradient(135deg, hsl(213 56% 13%) 0%, hsl(202 59% 22%) 45%, hsl(188 56% 30%) 100%);
+    --gradient-aurora: radial-gradient(at 20% 10%, hsl(184 65% 35% / 0.45) 0px, transparent 50%),
+                       radial-gradient(at 80% 0%, hsl(175 55% 50% / 0.25) 0px, transparent 50%),
+                       radial-gradient(at 40% 90%, hsl(202 70% 25% / 0.5) 0px, transparent 50%);
+    --gradient-card: linear-gradient(160deg, hsl(210 42% 11% / 0.9), hsl(210 45% 7% / 0.95));
+    --gradient-cta: linear-gradient(135deg, hsl(184 65% 50%), hsl(175 55% 60%));
+
+    --shadow-glow: 0 20px 60px -20px hsl(184 65% 40% / 0.45);
+    --shadow-card: 0 10px 40px -15px hsl(213 60% 4% / 0.7);
+    --shadow-soft: 0 1px 2px hsl(213 60% 4% / 0.4), 0 4px 12px hsl(213 60% 4% / 0.3);
+
+    --transition-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+
+    --sidebar-background: 210 45% 8%;
+    --sidebar-foreground: 190 35% 90%;
+    --sidebar-primary: 184 56% 51%;
+    --sidebar-primary-foreground: 210 60% 8%;
+    --sidebar-accent: 210 40% 14%;
+    --sidebar-accent-foreground: 190 35% 92%;
+    --sidebar-border: 210 38% 18%;
+    --sidebar-ring: 184 56% 51%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'ss01', 'cv11';
+    background-image: var(--gradient-aurora);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  .bg-hero { background-image: var(--gradient-hero); }
+  .bg-aurora { background-image: var(--gradient-aurora); }
+  .bg-card-grad { background-image: var(--gradient-card); }
+  .bg-cta { background-image: var(--gradient-cta); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .shadow-card { box-shadow: var(--shadow-card); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .text-balance { text-wrap: balance; }
+  .glass {
+    background: hsl(var(--card) / 0.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+  .ring-glow { box-shadow: 0 0 0 1px hsl(var(--primary) / 0.4), 0 0 30px hsl(var(--primary) / 0.25); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
+.animate-fade-up { animation: fade-up 0.6s var(--transition-smooth) both; }

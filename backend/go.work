@@ -4,4 +4,9 @@ use (
 	.
 	./services/api-gateway
 	./services/auth-service
+	./services/collaboration-service
+	./services/notification-service
+	./services/search-service
+	./services/trip-service
+	./services/user-service
 )
