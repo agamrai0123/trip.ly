@@ -61,6 +61,66 @@ make dev
 
 ## 🏗️ Architecture
 
+### System Diagram
+
+```mermaid
+graph TD
+    FE["Frontend\n(React 18 + Vite :5173)"]
+
+    subgraph "API Layer"
+        AGW["api-gateway :8080"]
+    end
+
+    subgraph "Backend Services"
+        AUTH["auth-service :8081"]
+        TRIP["trip-service :8082"]
+        USER["user-service :8083"]
+        COLLAB["collaboration-service :8084"]
+        NOTIF["notification-service :8085"]
+        SEARCH["search-service :8086"]
+    end
+
+    subgraph "Data"
+        DB[("PostgreSQL\nwanderplan schema")]
+        K[["Kafka\n(auth/trip/collab-events)"]]
+    end
+
+    subgraph "Observability"
+        PROM["Prometheus :9090"]
+        GRAF["Grafana :3000"]
+    end
+
+    EXT["Google Places API"]
+
+    FE -->|"REST / HTTPS"| AGW
+    FE -->|"WebSocket /ws/notifications"| NOTIF
+    AGW -->|"gRPC"| AUTH
+    AGW -->|"gRPC"| TRIP
+    AGW -->|"gRPC"| USER
+    AGW -->|"gRPC"| COLLAB
+    AGW -->|"gRPC"| NOTIF
+    AGW -->|"gRPC"| SEARCH
+    AUTH -->|"SQL pgx"| DB
+    TRIP -->|"SQL pgx"| DB
+    USER -->|"SQL pgx"| DB
+    COLLAB -->|"SQL pgx"| DB
+    NOTIF -->|"SQL pgx"| DB
+    SEARCH -->|"SQL pgx"| DB
+    AUTH -->|"produce auth-events"| K
+    TRIP -->|"produce trip-events"| K
+    COLLAB -->|"produce collab-events"| K
+    K -->|"consume"| NOTIF
+    SEARCH -->|"proxy"| EXT
+    PROM -->|"scrape /metrics"| AGW
+    PROM -->|"scrape /metrics"| AUTH
+    PROM -->|"scrape /metrics"| TRIP
+    PROM -->|"scrape /metrics"| USER
+    PROM -->|"scrape /metrics"| COLLAB
+    PROM -->|"scrape /metrics"| NOTIF
+    PROM -->|"scrape /metrics"| SEARCH
+    GRAF -->|"query"| PROM
+```
+
 ### Backend Services (Go)
 ```
 api-gateway:8080        → Entry point
@@ -216,7 +276,43 @@ make docker-compose  # Start full stack
 
 ---
 
-## 🔐 Authentication
+## � API Reference Index
+
+All endpoints exposed through **api-gateway** at `http://localhost:8080`. Routes prefixed `/api/v1` unless noted.
+
+| Method | Path | Service | Description |
+|--------|------|---------|-------------|
+| `GET` | `/healthz` | api-gateway | Health check |
+| `GET` | `/metrics` | api-gateway | Prometheus metrics |
+| `GET` | `/api/v1/auth/google/login` | auth-service | Initiate Google OAuth |
+| `GET` | `/api/v1/auth/google/callback` | auth-service | Google OAuth callback |
+| `GET` | `/api/v1/auth/github/login` | auth-service | Initiate GitHub OAuth |
+| `GET` | `/api/v1/auth/github/callback` | auth-service | GitHub OAuth callback |
+| `POST` | `/api/v1/auth/refresh` | auth-service | Refresh JWT access token |
+| `POST` | `/api/v1/auth/logout` | auth-service | Revoke refresh token |
+| `GET` | `/api/v1/users/me` | user-service | Get authenticated user profile |
+| `PUT` | `/api/v1/users/me` | user-service | Update user profile |
+| `GET` | `/api/v1/trips` | trip-service | List trips for current user |
+| `POST` | `/api/v1/trips` | trip-service | Create a new trip |
+| `GET` | `/api/v1/trips/:id` | trip-service | Get trip details |
+| `PUT` | `/api/v1/trips/:id` | trip-service | Update trip |
+| `DELETE` | `/api/v1/trips/:id` | trip-service | Delete trip |
+| `GET` | `/api/v1/trips/:id/days` | trip-service | Get itinerary days |
+| `GET` | `/api/v1/trips/:id/days/:dayId/items` | trip-service | Get day items |
+| `POST` | `/api/v1/trips/:id/days/:dayId/items` | trip-service | Add itinerary item |
+| `PATCH` | `/api/v1/trips/:id/items/reorder` | trip-service | Reorder itinerary items |
+| `GET` | `/api/v1/trips/:id/collaborators` | collaboration-service | List collaborators |
+| `POST` | `/api/v1/trips/:id/collaborators` | collaboration-service | Invite collaborator |
+| `DELETE` | `/api/v1/trips/:id/collaborators/:userId` | collaboration-service | Remove collaborator |
+| `GET` | `/api/v1/notifications` | notification-service | List notifications |
+| `PATCH` | `/api/v1/notifications/read-all` | notification-service | Mark all notifications read |
+| `PATCH` | `/api/v1/notifications/:id/read` | notification-service | Mark notification read |
+| `GET` | `/api/v1/search/places` | search-service | Search places (Google Places proxy) |
+| `WebSocket` | `/ws/notifications` | notification-service | Real-time notifications stream |
+
+---
+
+## �🔐 Authentication
 
 - **OAuth 2.0 PKCE** - Google & GitHub
 - **JWT Tokens** - 15-minute expiry, RS256

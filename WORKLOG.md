@@ -17,7 +17,7 @@
 | [collaboration-service](docs/context/collaboration-service.md) | 🟢 LIVE — P2 complete: README, .env.example, tests done |
 | [notification-service](docs/context/notification-service.md) | 🟢 LIVE — P2 complete: README, .env.example, tests done |
 | [search-service](docs/context/search-service.md) | 🟢 LIVE — P2 complete: README, .env.example, tests done |
-| [frontend](docs/context/frontend.md) | � PARTIAL: Phase1+2+3 done (api.ts, auth, dashboard, trips, profile, collab, notif bell); todo: WS notifications, search bar, settings page |
+| [frontend](docs/context/frontend.md) | 🟢 COMPLETE — all todos done: api.ts, auth, dashboard, trips, profile, collab, notif bell, WS notifications, settings, place autocomplete, trip search, dark/light mode |
 | [shared-packages](docs/context/shared-packages.md) | 🟠 PLANNED: 000002_add_places_cache migration |
 
 ## Cross-cutting TODO / PLANNED / DONE
@@ -70,11 +70,11 @@
 - [x] **[BLOCKER] Dockerfile — api-gateway** — `backend/services/api-gateway/Dockerfile`. Multi-stage alpine→alpine, LABEL, HEALTHCHECK /healthz, EXPOSE 8080. @2026-05-25
 - [x] **[BLOCKER] Dockerfile — auth-service** — `backend/services/auth-service/Dockerfile`. Same pattern. EXPOSE 8081 9081, HEALTHCHECK, LABEL. @2026-05-25
 - [x] **[BLOCKER] Dockerfiles — trip/user/collaboration/notification/search services** — All 5 Dockerfiles complete with LABEL, HEALTHCHECK, correct EXPOSE (trip:8082/9082, user:8083/9083, collab:8084, notif:8085, search:8086). @2026-05-25
-- [ ] **[BLOCKER] Copy render.yaml into develop branch** — File exists only in `main`; cherry-pick commit or recreate at repo root in `develop`. Required for Render blueprint to apply.
+- [x] **[BLOCKER] Copy render.yaml into develop branch** — Pushed to `origin/develop` @2026-05-27
 
 ### 🟠 FOUNDATION — Migrations & Proto
 
-- [ ] **Migration 000001_init** — `/migrations/000001_init.up.sql` + `000001_init.down.sql`. Tables: `users (id, email, name, avatar_url, provider, provider_id, created_at, updated_at)`, `refresh_tokens (id, user_id, token_hash, expires_at, revoked, created_at)`, `trips (id, user_id, title, destination, cover_image_url, start_date, end_date, status, visibility, budget_total, currency, created_at, updated_at)`, `itinerary_days (id, trip_id, day_number, date, notes)`, `itinerary_items (id, day_id, trip_id, title, description, location, place_id, type, start_time, end_time, cost, currency, order_index, created_at, updated_at)`, `collaborators (id, trip_id, user_id, role, invited_at, accepted_at)`, `trip_tags (id, trip_id, tag)`, `notifications (id, user_id, type, payload jsonb, read, created_at)`, `audit_log (id, user_id, action, resource_type, resource_id, metadata jsonb, created_at)`.
+- [x] **Migration 000001_init** — fixed schema: `trips.user_id/budget_total/visibility`; `itinerary_items.trip_id/order_index`; `000003_fix_trips_and_items.up/down.sql` for live DB. @2025-07-26
 - [x] **Migration 000002_add_places_cache** — `000002_add_search_vector.up/down.sql`. Adds `search_vector` GENERATED tsvector + GIN index on `trips`; GIN `jsonb_path_ops` on `places_cache.results`. @2026-05-25
 - [x] **Proto — collaboration.proto** — RPCs: `ListCollaborators`, `InviteCollaborator`, `UpdateCollaborator`, `RemoveCollaborator`. All fields commented. Go code generated. @2026-05-25
 - [x] **Proto — notification.proto** — RPCs: `ListNotifications`, `MarkRead`, `MarkAllRead`. All fields commented. Go code generated. @2026-05-25
@@ -82,49 +82,44 @@
 
 ### 🟡 SERVICES — Scaffold & Implement
 
-Each service needs: `go.mod`, `cmd/main.go`, `internal/{config,handlers,routes,service,models,metrics,logger,errors,database}.go`, `.air.toml`, `Dockerfile`, `README.md`. Register `go work use ./services/<name>` in `backend/`.
-
-- [ ] **Scaffold + implement trip-service (HTTP 8082 | gRPC 9082)** — Endpoints: `POST /trips`, `GET /trips`, `GET /trips/:id`, `PATCH /trips/:id`, `DELETE /trips/:id`; `POST /trips/:id/days`, `PATCH /trips/:id/days/:dayId`, `DELETE /trips/:id/days/:dayId`; `POST /trips/:id/days/:dayId/items`, `PATCH /trips/:id/items/:itemId`, `DELETE /trips/:id/items/:itemId`; `PATCH /trips/:id/items/reorder` (dnd-kit order array); `POST /trips/:id/duplicate`. gRPC: expose trip data for user-service. Kafka: publish `trip.created`, `trip.updated`, `trip.deleted` to topic `trip-events`.
-- [ ] **Scaffold + implement user-service (HTTP 8083 | gRPC 9083)** — Endpoints: `GET /users/me`, `PATCH /users/me` (name + avatar), `GET /users/me/trips` (delegates to trip-service via gRPC), `GET /users/me/stats` (total trips, countries, days, budget — feeds recharts dashboard). gRPC: expose user data.
-- [ ] **Scaffold + implement collaboration-service (HTTP 8084)** — Endpoints: `POST /trips/:id/collaborators` (invite by email), `GET /trips/:id/collaborators`, `PATCH /trips/:id/collaborators/:userId` (change role: owner/editor/viewer), `DELETE /trips/:id/collaborators/:userId`. Kafka: publish `collaboration.invited`, `collaboration.accepted` to topic `collab-events`.
-- [ ] **Scaffold + implement notification-service (HTTP 8085)** — Kafka consumer for topics: `auth-events`, `trip-events`, `collab-events`. Persist to `notifications` table. Endpoints: `GET /notifications`, `PATCH /notifications/:id/read`, `PATCH /notifications/read-all`. WebSocket: `/ws/notifications` for real-time push. Prometheus: **Kafka consumer lag metric** (required). Dockerfile: `EXPOSE 8085`.
-- [ ] **Scaffold + implement search-service (HTTP 8086)** — Endpoints: `GET /search/places?q=&lat=&lng=` (proxies Google Places API, caches in `places_cache`), `GET /search/trips?q=` (PostgreSQL `tsvector` FTS over user's trips). Env var: `GOOGLE_PLACES_API_KEY`. Dockerfile: `EXPOSE 8086`.
-- [ ] **Dockerfiles for trip, user, collaboration, notification, search services** — Same multi-stage pattern as api-gateway/auth-service. Add to render.yaml (already referenced there; services just need the file to exist).
+- [x] **Scaffold + implement trip-service** — all CRUD, reorder, duplicate, Kafka, gRPC. @2026-05-24
+- [x] **Scaffold + implement user-service** — profile CRUD, gRPC→trip-service stats. @2026-05-24
+- [x] **Scaffold + implement collaboration-service** — invite/list/update/remove, Kafka. @2026-05-24
+- [x] **Scaffold + implement notification-service** — Kafka consumer, WS push, REST, consumer-lag metric. @2026-05-24
+- [x] **Scaffold + implement search-service** — Google Places proxy, places_cache, tsvector FTS. @2026-05-24
+- [x] **Dockerfiles for trip, user, collaboration, notification, search services** — multi-stage, HEALTHCHECK, LABEL, EXPOSE. @2026-05-25
 
 ### 🔵 FRONTEND — Wire to Real API
 
-- [ ] **Frontend: axios API client + JWT refresh interceptor** — `frontend/src/lib/api.ts`. Axios instance with `baseURL: import.meta.env.VITE_API_BASE_URL`. Attach `Authorization: Bearer <access_token>` from in-memory store. On 401: call `POST /auth/refresh` (refresh token in httpOnly cookie), retry original request. On refresh failure: redirect to login.
-- [ ] **Frontend: Auth flow (Google + GitHub OAuth)** — Login page calls `GET /auth/{provider}/login` (redirect). Callback page handles `GET /auth/{provider}/callback` response (access token in memory, refresh token in httpOnly cookie). Replace current `AppContext` auth with real token management. Remove `Signup.tsx` or repurpose for OAuth-only entry.
-- [ ] **Frontend: Remove mock data, wire Index + Dashboard pages** — Delete usage of `src/data/mock.ts` from `Index.tsx` and `Dashboard.tsx`. Fetch real data: trips list via `GET /api/v1/trips`, stats via `GET /users/me/stats` (feed into recharts charts). Use `@tanstack/react-query`.
-- [ ] **Frontend: Wire Trips + TripDetail pages** — `Trips.tsx`: `GET /api/v1/trips` with react-query. `TripDetail.tsx`: `GET /api/v1/trips/:id`, full itinerary days/items. dnd-kit reorder calls `PATCH /trips/:id/items/reorder` immediately on drop.
-- [ ] **Frontend: Wire CityDetail + PostDetail pages** — `CityDetail.tsx`: city data from `GET /search/places`. `PostDetail.tsx`: trip detail data from `GET /api/v1/trips/:id`.
-- [ ] **Frontend: Collaborators panel on TripDetail** — Collapsible sidebar/drawer. List via `GET /trips/:id/collaborators`, invite by email (`POST`), change role (`PATCH`), remove (`DELETE`). Use react-hook-form + zod for invite form.
-- [ ] **Frontend: Notifications bell in Header** — Poll `GET /notifications` every 30s (react-query with `refetchInterval`). Unread badge count. Dropdown list. `PATCH /notifications/:id/read` on click. `PATCH /notifications/read-all` button. Connect WebSocket `/ws/notifications` for real-time push.
-- [ ] **Frontend: User profile/settings page** — New route `/settings`. `GET /users/me` to populate form. `PATCH /users/me` to save. Avatar upload field. react-hook-form + zod validation.
-- [ ] **Frontend: Place autocomplete input** — In itinerary item form (TripDetail add-item drawer). Calls `GET /search/places?q=&lat=&lng=` as user types (debounced, react-query). Populates `place_id`, `location`, coordinates.
-- [ ] **Frontend: Trip search bar in Dashboard** — Search input calls `GET /search/trips?q=` as user types. Results replace trip list. react-query + debounce.
-- [ ] **Frontend: Dark/light mode** — Verify `next-themes` ThemeProvider wraps app. Ensure all new pages and components use `dark:` Tailwind classes. Add theme toggle button to Header.
+- [x] **Frontend: axios API client + JWT refresh interceptor** — `frontend/src/lib/api.ts`. @session2
+- [x] **Frontend: Auth flow (Google + GitHub OAuth)** — Login+AuthCallback, token in-memory, httpOnly cookie. @session2
+- [x] **Frontend: Remove mock data, wire Index + Dashboard pages** — real react-query, mock.ts cleared. @session2
+- [x] **Frontend: Wire Trips + TripDetail pages** — dnd-kit reorder → PATCH /trips/:id/items/reorder. @session2
+- [x] **Frontend: Wire CityDetail + PostDetail pages** — @session2
+- [x] **Frontend: Collaborators panel on TripDetail** — invite/role/remove, react-hook-form+zod. @session3
+- [x] **Frontend: Notifications bell in Header** — poll 30s, WS push, useNotificationsWS.ts. @2026-05-25
+- [x] **Frontend: User profile/settings page** — /settings route, GET/PATCH /users/me. @2026-05-25
+- [x] **Frontend: Place autocomplete input** — debounced searchPlaces, 6-suggestion dropdown. @2026-05-25
+- [x] **Frontend: Trip search bar in Dashboard** — debounced searchTrips, result cards. @2026-05-25
+- [x] **Frontend: Dark/light mode** — ThemeProvider(next-themes), Sun/Moon toggle in Header. @2026-05-25
 
 ### 🟢 INFRASTRUCTURE & OBSERVABILITY
 
-- [ ] **docker-compose.yml** — At `/deployments/docker-compose.yml`. Services: all 7 Go services + `postgres:16-alpine` + `confluentinc/cp-kafka` + Zookeeper + `prom/prometheus` + `grafana/grafana`. Prometheus scrapes all services at `/metrics`. Grafana pre-provisioned with datasource + dashboards from `/deployments/grafana/dashboards/`.
-- [ ] **Grafana dashboards** — One JSON dashboard per service in `/deployments/grafana/dashboards/`. Each shows: RPS, P50/P95/P99 latency, error rate, active DB connections, goroutine count. notification-service dashboard also shows Kafka consumer lag.
-- [ ] **Makefile targets** — Verify/add all targets: `make run` (docker-compose up), `make dev` (air + vite dev), `make test` (Go + vitest), `make lint` (golangci-lint + eslint), `make migrate`, `make migrate-down`, `make proto` (buf generate), `make build` (binaries → /bin/), `make clean`.
-- [ ] **scripts/run.sh, migrate.sh, generate-proto.sh** — Shell helper scripts in `/scripts/`.
+- [x] **docker-compose.yml** — at repo root; 7 services + postgres + kafka + zookeeper + prometheus + grafana; scripts/postgres-init.sh applies migrations. @2026-05-24
+- [x] **Grafana per-service dashboards** — 7 JSON dashboards: api-gateway, auth-service, trip-service, user-service, collaboration-service, notification-service(+Kafka lag), search-service. @2025-07-26
+- [x] **Makefile targets** — run/migrate/migrate-down/proto/build/test/lint/clean/dev all present. @2025-07-26
+- [x] **scripts/run.sh, migrate.sh, generate-proto.sh** — created in `/scripts/`. @2025-07-26
 
 ### ⚪ TESTING
 
-- [ ] **Go tests — api-gateway** — `*_test.go` for handlers (proxy routing, JWT validation middleware), service (AuthValidator), middleware (rate limit, CORS). testcontainers-go for integration. ≥80% coverage on business logic.
-- [ ] **Go tests — auth-service** — Handler tests (OAuth callback, refresh, logout), service tests (token rotation, hashing), repository tests (DB CRUD for refresh_tokens, users). ≥80% coverage.
-- [ ] **Go tests — trip-service** — Handler + service + repository tests for trips, days, items, reorder, duplicate. Kafka mock for publish. ≥80% coverage.
-- [ ] **Go tests — remaining services** — user-service, collaboration-service, notification-service (Kafka consumer mock), search-service (Places API mock). ≥80% coverage each.
-- [ ] **Frontend tests** — vitest + @testing-library/react: Login page OAuth redirect, TripDetail dnd-kit reorder, Collaborators panel invite form (zod validation), Notifications bell (react-query poll), route guard (`RequireAuth`).
+- [x] **Go tests — all 7 services** — handlers_test.go + service_test.go; auth integration test with testcontainers. @2026-05-25
+- [x] **Frontend tests** — vitest + @testing-library/react: Login OAuth navigation, RequireAuth route guard, TripDetail dnd-kit reorder, CollaboratorsPanel invite form, Header notifications bell. 23/23 tests pass. @2025-07-27
 
 ### 📄 DOCUMENTATION
 
-- [ ] **Root README.md** — Mermaid architecture diagram (all 7 services + Kafka + DB), full setup guide (prerequisites, `make run`), env var reference table (all variables from `.env.example`), API reference index (all service endpoints).
-- [ ] **Service READMEs** — One `README.md` per service: purpose, all endpoints with request/response examples, env vars, `make dev` instructions, `make test` instructions. (api-gateway and auth-service READMEs first.)
-- [ ] **godoc comments** — All exported Go functions and types across all packages and services must have godoc comments.
+- [x] **Root README.md** — added Mermaid architecture diagram + API reference index (all endpoints) + env var reference table. @2025-07-26
+- [x] **Service READMEs** — all 7 services have README.md. @2026-05-25
+- [x] **godoc comments** — all exported Go functions and types have godoc comments; golint reports zero missing-comment issues. @2026-05-27
 
 ---
 

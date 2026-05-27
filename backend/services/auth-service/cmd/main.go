@@ -18,8 +18,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 
-	internal "github.com/agamrai0123/wanderplan/services/auth-service/internal"
 	proto "github.com/agamrai0123/wanderplan/proto/gen/wanderplan/v1"
+	internal "github.com/agamrai0123/wanderplan/services/auth-service/internal"
 
 	"google.golang.org/grpc"
 )

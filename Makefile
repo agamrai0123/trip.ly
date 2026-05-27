@@ -1,7 +1,7 @@
 # WanderPlan Makefile - Automated Build, Test & Deployment
 # Usage: make [target]
 
-.PHONY: help setup check-deps install-tools test-frontend test-backend test-proto build-frontend build-backend docker-up docker-down dev validate-all fix-all lint-frontend lint-backend fmt-backend clean
+.PHONY: help setup check-deps install-tools test-frontend test-backend test-proto build-frontend build-backend docker-up docker-down dev validate-all fix-all lint-frontend lint-backend fmt-backend clean local-up local-down local-restart load-test migrate migrate-down db-migrate db-rollback proto proto-lint run dev-frontend dev-backend status ci cd
 
 # Color output
 BLUE := \033[0;34m
@@ -130,8 +130,11 @@ test-frontend:
 	@echo "$(GREEN)✅ Frontend tests passed$(NC)"
 
 test-backend:
-	@echo "$(BLUE)Testing backend...$(NC)"
-	@cd backend && go mod download && go test -v -race -coverprofile=coverage.out ./...
+	@echo "$(BLUE)Testing backend services...$(NC)"
+	@for svc in api-gateway auth-service trip-service user-service collaboration-service notification-service search-service; do \
+		echo "  Testing $$svc..."; \
+		(cd backend/services/$$svc && go test ./internal/... -count=1 -timeout 60s -race) || exit 1; \
+	done
 	@echo "$(GREEN)✅ Backend tests passed$(NC)"
 
 test-proto:
@@ -208,25 +211,74 @@ fix-all: fmt-frontend fmt-backend
 
 docker-up:
 	@echo "$(BLUE)Starting Docker stack...$(NC)"
-	@docker-compose up -d
+	@docker compose up -d
 	@echo "$(BLUE)Waiting for services to be healthy...$(NC)"
 	@sleep 5
 	@echo "$(GREEN)✅ Docker stack started$(NC)"
 	@echo "$(BLUE)Services running:$(NC)"
-	@docker-compose ps
+	@docker compose ps
 
 docker-down:
 	@echo "$(BLUE)Stopping Docker stack...$(NC)"
-	@docker-compose down
+	@docker compose down
 	@echo "$(GREEN)✅ Docker stack stopped$(NC)"
 
 docker-logs:
-	@docker-compose logs -f
+	@docker compose logs -f
 
 docker-clean:
 	@echo "$(BLUE)Cleaning Docker resources...$(NC)"
-	@docker-compose down -v
+	@docker compose down -v
 	@echo "$(GREEN)✅ Docker cleaned$(NC)"
+
+# ── Local full-stack (build + run all services + infra + frontend) ─────────────
+
+local-up:
+	@echo "$(BLUE)Starting full local stack (build + run)...$(NC)"
+	@if [ ! -f .env ]; then echo "$(RED)❌ .env missing. Run: cp .env.example .env and fill in JWT keys$(NC)"; exit 1; fi
+	@chmod +x scripts/postgres-init.sh 2>/dev/null || true
+	@docker compose up -d --build
+	@echo "$(BLUE)Waiting for all services to be healthy (up to 120s)...$(NC)"
+	@for i in $$(seq 1 24); do \
+		if curl -sf http://localhost:8080/healthz -o /dev/null 2>/dev/null; then \
+			echo "$(GREEN)✅ Stack is up!$(NC)"; break; \
+		fi; \
+		if [ "$$i" = "24" ]; then echo "$(YELLOW)⚠ api-gateway not healthy after 120s — check: make local-logs$(NC)"; fi; \
+		sleep 5; \
+	done
+	@echo ""
+	@echo "$(GREEN)╔══════════════════════════════════════════════════════╗$(NC)"
+	@echo "$(GREEN)║  WanderPlan local stack                               ║$(NC)"
+	@echo "$(GREEN)╚══════════════════════════════════════════════════════╝$(NC)"
+	@echo "  Frontend:     http://localhost:5173"
+	@echo "  API Gateway:  http://localhost:8080"
+	@echo "  Auth:         http://localhost:8081"
+	@echo "  Trip:         http://localhost:8082"
+	@echo "  User:         http://localhost:8083"
+	@echo "  Collab:       http://localhost:8084"
+	@echo "  Notif:        http://localhost:8085"
+	@echo "  Search:       http://localhost:8086"
+	@echo "  Prometheus:   http://localhost:9090"
+	@echo "  Grafana:      http://localhost:3001  (admin/admin)"
+
+local-down:
+	@docker compose down
+	@echo "$(GREEN)✅ Local stack stopped$(NC)"
+
+local-restart:
+	@docker compose down
+	@docker compose up -d --build
+	@echo "$(GREEN)✅ Local stack restarted$(NC)"
+
+local-logs:
+	@docker compose logs -f --tail=50
+
+# ── Load tests ─────────────────────────────────────────────────────────────────
+
+load-test:
+	@echo "$(BLUE)Running load tests against local stack...$(NC)"
+	@chmod +x scripts/load-test.sh
+	@bash scripts/load-test.sh $(ARGS)
 
 # ============================================================================
 # DEVELOPMENT
@@ -318,6 +370,10 @@ db-rollback:
 	@cd backend && go run -mod=mod github.com/golang-migrate/migrate/v4/cmd/migrate@latest -path ./migrations -database "${DATABASE_URL}" down
 	@echo "$(GREEN)✅ Rollback complete$(NC)"
 
+# Aliases matching project convention (migrate / migrate-down)
+migrate: db-migrate
+migrate-down: db-rollback
+
 # ============================================================================
 # CI/CD
 # ============================================================================
@@ -336,3 +392,21 @@ cd:
 # ============================================================================
 
 .DEFAULT_GOAL := help
+
+# ============================================================================
+# SHORTHAND ALIASES (required by project conventions)
+# ============================================================================
+
+# run -- start all backend services (docker-up first)
+run:
+	@for svc in api-gateway auth-service trip-service user-service collaboration-service notification-service search-service; do \
+		echo "  Starting $$svc..."; \
+		(cd backend/services/$$svc && go run ./cmd/... &); \
+	done
+	@echo "All services started."
+
+# migrate -- run all pending migrations up
+migrate: db-migrate
+
+# migrate-down -- roll back last migration
+migrate-down: db-rollback

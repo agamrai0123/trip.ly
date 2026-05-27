@@ -20,9 +20,9 @@ func TestCoalesce(t *testing.T) {
 	}{
 		{"value", "default", "value"},
 		{"", "default", "default"},
-		{" ", "default", " "},         // non-empty whitespace is kept
-		{"0", "default", "0"},         // "0" is non-empty
-		{"", "", ""},                  // both empty → empty
+		{" ", "default", " "}, // non-empty whitespace is kept
+		{"0", "default", "0"}, // "0" is non-empty
+		{"", "", ""},          // both empty → empty
 	}
 
 	for _, tt := range tests {

@@ -1,19 +1,34 @@
 import { Link } from "react-router-dom";
 import { cities } from "@/data/mock";
-import { Search, MapPin, Sparkles, Briefcase } from "lucide-react";
+import { Search, MapPin, Sparkles, Briefcase, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useApp } from "@/store/AppContext";
 import { useQuery } from "@tanstack/react-query";
-import { fetchTrips } from "@/lib/api";
+import { fetchTrips, searchTrips, type ApiTrip } from "@/lib/api";
+import { format } from "date-fns";
 
 const Dashboard = () => {
   const { user } = useApp();
   const [q, setQ] = useState("");
+  const [debounced, setDebounced] = useState("");
+
+  // 400 ms debounce for trip search
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 400);
+    return () => clearTimeout(t);
+  }, [q]);
 
   const { data: trips = [] } = useQuery({
     queryKey: ["trips"],
     queryFn: fetchTrips,
+  });
+
+  const { data: tripResults = [], isFetching: searchingTrips } = useQuery({
+    queryKey: ["search-trips", debounced],
+    queryFn: () => searchTrips(debounced),
+    enabled: debounced.length >= 2,
+    staleTime: 30_000,
   });
 
   const filtered = useMemo(() => {
@@ -50,7 +65,7 @@ const Dashboard = () => {
         </div>
       </section>
 
-      {trips.length > 0 && (
+      {trips.length > 0 && !q.trim() && (
         <section className="mt-10 rounded-2xl border border-border/60 bg-card-grad p-5">
           <div className="flex items-center justify-between">
             <div>
@@ -59,6 +74,63 @@ const Dashboard = () => {
             </div>
             <Link to="/trips" className="text-sm font-medium text-primary hover:underline">View all →</Link>
           </div>
+        </section>
+      )}
+
+      {/* Trip search results */}
+      {debounced.length >= 2 && (
+        <section className="mt-10">
+          <h2 className="mb-4 font-display text-2xl font-semibold tracking-tight">
+            Your trips matching "{debounced}"
+          </h2>
+          {searchingTrips && (
+            <div className="text-sm text-muted-foreground">Searching…</div>
+          )}
+          {!searchingTrips && tripResults.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-border/80 bg-card-grad p-10 text-center text-muted-foreground">
+              No matching trips found.
+            </div>
+          )}
+          {tripResults.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {tripResults.map((trip: ApiTrip) => (
+                <Link
+                  key={trip.id}
+                  to={`/trips/${trip.id}`}
+                  className="group rounded-2xl border border-border/60 bg-card-grad p-5 transition-all hover:-translate-y-1 hover:shadow-glow"
+                >
+                  {trip.cover_image_url && (
+                    <div className="mb-4 aspect-video overflow-hidden rounded-xl">
+                      <img
+                        src={trip.cover_image_url}
+                        alt={trip.title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-display text-lg font-semibold leading-tight">{trip.title}</h3>
+                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5" />{trip.destination}
+                      </div>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs capitalize ${
+                      trip.status === "active" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                    }`}>{trip.status}</span>
+                  </div>
+                  {(trip.start_date || trip.end_date) && (
+                    <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {trip.start_date && format(new Date(trip.start_date), "MMM d")}
+                      {trip.start_date && trip.end_date && " – "}
+                      {trip.end_date && format(new Date(trip.end_date), "MMM d, yyyy")}
+                    </div>
+                  )}
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

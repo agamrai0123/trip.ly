@@ -4,11 +4,27 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
+
+// GetEnv returns the current runtime environment from the ENV environment variable.
+// Defaults to "development" when the variable is not set.
+func GetEnv() string {
+	if v := os.Getenv("ENV"); v != "" {
+		return strings.ToLower(v)
+	}
+	return "development"
+}
+
+// IsProduction reports whether the service is running in the production environment.
+// Returns true only when ENV == "production".
+func IsProduction() bool {
+	return GetEnv() == "production"
+}
 
 // Load initialises Viper from a JSON config file and then allows environment variables
 // (with the given envPrefix) to override any key.

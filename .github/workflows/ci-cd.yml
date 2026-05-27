@@ -17,6 +17,8 @@ concurrency:
 env:
   GO_VERSION: '1.23.0'
   NODE_VERSION: '20.x'
+  # ENV is set per-branch: main = production, develop = development
+  APP_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
 
 jobs:
   # ============================================================================
@@ -436,3 +438,101 @@ jobs:
           else
             echo "Badge: ![Status](https://img.shields.io/badge/Build-Failing-red)"
           fi
+
+  # ============================================================================
+  # PRODUCTION DEPLOY — only on push to main
+  # ============================================================================
+  deploy-production:
+    name: Deploy to Render.com (production)
+    runs-on: ubuntu-latest
+    needs: [frontend-test, backend-build, docker-build, error-check]
+    # Only deploy when all checks pass AND we are on the main branch (not develop, not PRs)
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.error-check.result == 'success'
+    environment:
+      name: production
+      url: https://wanderplan-api-gateway.onrender.com/healthz
+    steps:
+      - name: Confirm environment
+        run: |
+          echo "🚀 Deploying to PRODUCTION from branch: ${{ github.ref }}"
+          echo "   Commit : ${{ github.sha }}"
+          echo "   ENV    : production"
+
+      - name: Trigger Render deploys
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          if [ -z "$RENDER_API_KEY" ]; then
+            echo "⚠️  RENDER_API_KEY secret not set — skipping programmatic trigger."
+            echo "   Render will auto-deploy from main via the GitHub integration."
+            exit 0
+          fi
+
+          SERVICES=(
+            wanderplan-api-gateway
+            wanderplan-auth-service
+            wanderplan-trip-service
+            wanderplan-user-service
+            wanderplan-collaboration-service
+            wanderplan-notification-service
+            wanderplan-search-service
+            wanderplan-frontend
+          )
+
+          # Fetch all service IDs from the Render API and trigger a deploy for each.
+          for NAME in "${SERVICES[@]}"; do
+            SERVICE_ID=$(curl -sf \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services?name=${NAME}&limit=1" \
+              | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+            if [ -n "$SERVICE_ID" ]; then
+              curl -sf -X POST \
+                -H "Authorization: Bearer $RENDER_API_KEY" \
+                -H "Content-Type: application/json" \
+                -d '{"clearCache":false}' \
+                "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+                && echo "✅ Triggered deploy for ${NAME} (${SERVICE_ID})" \
+                || echo "⚠️  Failed to trigger deploy for ${NAME}"
+            else
+              echo "⚠️  Could not find service ID for ${NAME} — may not be registered yet."
+            fi
+          done
+
+      - name: Verify health after deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          echo "⏳ Waiting 90 s for Render services to come up..."
+          sleep 90
+
+          HEALTHZ_URLS=(
+            "https://wanderplan-api-gateway.onrender.com/healthz"
+            "https://wanderplan-auth-service.onrender.com/healthz"
+            "https://wanderplan-trip-service.onrender.com/healthz"
+            "https://wanderplan-user-service.onrender.com/healthz"
+            "https://wanderplan-collaboration-service.onrender.com/healthz"
+            "https://wanderplan-notification-service.onrender.com/healthz"
+            "https://wanderplan-search-service.onrender.com/healthz"
+          )
+
+          FAILED=0
+          for URL in "${HEALTHZ_URLS[@]}"; do
+            STATUS=$(curl -o /dev/null -sf -w "%{http_code}" --max-time 10 "$URL" || echo "000")
+            if [ "$STATUS" == "200" ]; then
+              echo "✅ $URL → $STATUS"
+            else
+              echo "❌ $URL → $STATUS"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ $FAILED -gt 0 ]; then
+            echo "⚠️  $FAILED service(s) did not return 200. Check Render dashboard for logs."
+            # Non-fatal: Render free-tier services may spin down and take longer.
+            exit 0
+          fi
+          echo "🎉 All production services healthy!"
