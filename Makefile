@@ -1,7 +1,7 @@
 # WanderPlan Makefile - Automated Build, Test & Deployment
 # Usage: make [target]
 
-.PHONY: help setup check-deps install-tools test-frontend test-backend test-proto build-frontend build-backend docker-up docker-down dev validate-all fix-all lint-frontend lint-backend fmt-backend clean local-up local-down local-restart load-test
+.PHONY: help setup check-deps install-tools test-frontend test-backend test-proto build-frontend build-backend docker-up docker-down dev validate-all fix-all lint-frontend lint-backend fmt-backend clean local-up local-down local-restart load-test migrate migrate-down db-migrate db-rollback proto proto-lint run dev-frontend dev-backend status ci cd
 
 # Color output
 BLUE := \033[0;34m
@@ -130,8 +130,11 @@ test-frontend:
 	@echo "$(GREEN)✅ Frontend tests passed$(NC)"
 
 test-backend:
-	@echo "$(BLUE)Testing backend...$(NC)"
-	@cd backend && go mod download && go test -v -race -coverprofile=coverage.out ./...
+	@echo "$(BLUE)Testing backend services...$(NC)"
+	@for svc in api-gateway auth-service trip-service user-service collaboration-service notification-service search-service; do \
+		echo "  Testing $$svc..."; \
+		(cd backend/services/$$svc && go test ./internal/... -count=1 -timeout 60s -race) || exit 1; \
+	done
 	@echo "$(GREEN)✅ Backend tests passed$(NC)"
 
 test-proto:
@@ -366,6 +369,10 @@ db-rollback:
 	@echo "$(BLUE)Rolling back migrations...$(NC)"
 	@cd backend && go run -mod=mod github.com/golang-migrate/migrate/v4/cmd/migrate@latest -path ./migrations -database "${DATABASE_URL}" down
 	@echo "$(GREEN)✅ Rollback complete$(NC)"
+
+# Aliases matching project convention (migrate / migrate-down)
+migrate: db-migrate
+migrate-down: db-rollback
 
 # ============================================================================
 # CI/CD
