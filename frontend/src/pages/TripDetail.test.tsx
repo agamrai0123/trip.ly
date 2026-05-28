@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type MockInstance } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -143,13 +143,15 @@ describe("TripDetail — dnd-kit item reorder", () => {
     expect(capturedOnDragEnd).not.toBeNull();
 
     // Simulate dragging item-1 onto item-2 (swap)
-    capturedOnDragEnd!({
-      active: { id: "item-1", data: { current: undefined }, rect: { current: { initial: null, translated: null } } },
-      over: { id: "item-2", data: { current: undefined }, rect: { width: 0, height: 0, left: 0, top: 0, right: 0, bottom: 0 } },
-      collisions: [],
-      activatorEvent: new Event("pointermove"),
-      delta: { x: 0, y: 0 },
-    } as unknown as DragEndEvent);
+    await act(async () => {
+      capturedOnDragEnd!({
+        active: { id: "item-1", data: { current: undefined }, rect: { current: { initial: null, translated: null } } },
+        over: { id: "item-2", data: { current: undefined }, rect: { width: 0, height: 0, left: 0, top: 0, right: 0, bottom: 0 } },
+        collisions: [],
+        activatorEvent: new Event("pointermove"),
+        delta: { x: 0, y: 0 },
+      } as unknown as DragEndEvent);
+    });
 
     await waitFor(() => {
       expect(mockReorderItems).toHaveBeenCalledWith("trip-1", ["item-2", "item-1"]);
@@ -161,13 +163,15 @@ describe("TripDetail — dnd-kit item reorder", () => {
 
     await waitFor(() => expect(screen.getByText("Eiffel Tower")).toBeInTheDocument());
 
-    capturedOnDragEnd!({
-      active: { id: "item-1", data: { current: undefined }, rect: { current: { initial: null, translated: null } } },
-      over: { id: "item-1", data: { current: undefined }, rect: { width: 0, height: 0, left: 0, top: 0, right: 0, bottom: 0 } },
-      collisions: [],
-      activatorEvent: new Event("pointermove"),
-      delta: { x: 0, y: 0 },
-    } as unknown as DragEndEvent);
+    await act(async () => {
+      capturedOnDragEnd!({
+        active: { id: "item-1", data: { current: undefined }, rect: { current: { initial: null, translated: null } } },
+        over: { id: "item-1", data: { current: undefined }, rect: { width: 0, height: 0, left: 0, top: 0, right: 0, bottom: 0 } },
+        collisions: [],
+        activatorEvent: new Event("pointermove"),
+        delta: { x: 0, y: 0 },
+      } as unknown as DragEndEvent);
+    });
 
     await waitFor(() => {
       expect(mockReorderItems).not.toHaveBeenCalled();

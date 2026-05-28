@@ -18,7 +18,7 @@
 | [notification-service](docs/context/notification-service.md) | 🟢 LIVE — P2 complete: README, .env.example, tests done |
 | [search-service](docs/context/search-service.md) | 🟢 LIVE — P2 complete: README, .env.example, tests done |
 | [frontend](docs/context/frontend.md) | 🟢 COMPLETE — all todos done: api.ts, auth, dashboard, trips, profile, collab, notif bell, WS notifications, settings, place autocomplete, trip search, dark/light mode |
-| [shared-packages](docs/context/shared-packages.md) | 🟠 PLANNED: 000002_add_places_cache migration |
+| [shared-packages](docs/context/shared-packages.md) | � DONE — all packages + migrations complete |
 
 ## Cross-cutting TODO / PLANNED / DONE
 
